@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     bottomDockOpen: false,
     activeInspectorTab: 'properties',
     activeTool: 'select',
+    scheduleFilter: 'all', // 'all' | 'verified' | 'review'
     sheetCatalog: [],
     selectedSheetsForProcessing: new Set(),
   };
@@ -48,8 +49,14 @@ document.addEventListener('DOMContentLoaded', () => {
     zoomLabelId: 'zoom-level-label',
     onWallSelected: (wall) => {
       state.selectedWall = wall;
-      populateInspector(wall);
-      highlightScheduleRow(wall.run_id, true);
+      if (wall) {
+        if (!state.rightDrawerOpen) toggleRightDrawer(true);
+        populateInspector(wall);
+        highlightScheduleRow(wall.run_id, true);
+      } else {
+        resetInspector();
+        highlightScheduleRow(null, false);
+      }
     },
     onPanZoomChanged: (scale, panX, panY) => {
       const hudCoords = document.getElementById('hud-coords');
@@ -108,6 +115,15 @@ document.addEventListener('DOMContentLoaded', () => {
       schedDrawer.classList.add('h-10');
       if (schedToggleBtn) schedToggleBtn.innerHTML = '<span class="material-symbols-outlined text-[16px]">expand_less</span> Expand';
     }
+  };
+
+  // Schedule Filter Handler ('all' | 'verified' | 'review')
+  window.setScheduleFilter = function(filterMode) {
+    state.scheduleFilter = filterMode;
+    if (!state.bottomDockOpen) {
+      window.toggleScheduleDock(true);
+    }
+    populateBottomSchedule();
   };
 
   // Switch Inspector Tab
@@ -826,6 +842,23 @@ document.addEventListener('DOMContentLoaded', () => {
   // INSPECTOR PANEL POPULATION & EDITING
   // ===========================================================================
 
+  function formatArchitecturalInches(val) {
+    if (val === null || val === undefined || isNaN(val)) return '—';
+    const numVal = parseFloat(val);
+    const whole = Math.floor(numVal);
+    const frac = numVal - whole;
+    const sixteenths = Math.round(frac * 16);
+    if (sixteenths === 0) return `${whole}"`;
+    if (sixteenths === 16) return `${whole + 1}"`;
+    let num = sixteenths;
+    let den = 16;
+    while (num % 2 === 0 && den % 2 === 0) {
+      num /= 2;
+      den /= 2;
+    }
+    return whole > 0 ? `${whole}-${num}/${den}"` : `${num}/${den}"`;
+  }
+
   function populateInspector(wall) {
     if (!wall) return;
 
@@ -836,10 +869,45 @@ document.addEventListener('DOMContentLoaded', () => {
     const sheetEl = document.getElementById('inspector-wall-sheet');
     if (sheetEl) sheetEl.textContent = `Page ${wall.page_num || state.currentPage} · ${wall.sheet_label || 'A-101'}`;
 
+    // Status Badge Logic (Requirement R4 & Acceptance Criteria)
     const statusEl = document.getElementById('inspector-audit-badge');
+    const isManual = !!wall.is_manual;
+    const isVerified = !!wall.is_height_verified && wall.status !== 'REVIEW';
+
     if (statusEl) {
-      statusEl.textContent = wall.is_manual ? 'MANUAL' : (wall.status === 'OK' ? 'VERIFIED' : (wall.status || 'VERIFIED'));
-      statusEl.className = wall.is_manual ? 'bg-purple-950/40 text-purple-300 border border-purple-500/30 px-1.5 py-0.5 text-[10px] font-mono' : 'bg-emerald-950/40 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-mono';
+      if (isManual) {
+        statusEl.textContent = 'MANUAL';
+        statusEl.className = 'bg-purple-950/60 text-purple-300 border border-purple-500/40 px-1.5 py-0.5 text-[10px] font-mono font-bold';
+      } else if (isVerified) {
+        statusEl.textContent = 'VERIFIED';
+        statusEl.className = 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/40 px-1.5 py-0.5 text-[10px] font-mono font-bold';
+      } else {
+        statusEl.textContent = 'REVIEW';
+        statusEl.className = 'bg-amber-950/60 text-amber-400 border border-amber-500/40 px-1.5 py-0.5 text-[10px] font-mono font-bold';
+      }
+    }
+
+    // Estimator Review Warning Banner vs Verified Banner
+    const reviewBanner = document.getElementById('inspector-review-banner');
+    const reviewReason = document.getElementById('inspector-review-reason');
+    const verifiedBanner = document.getElementById('inspector-verified-banner');
+    const verifiedDetail = document.getElementById('inspector-verified-detail');
+
+    if (!isVerified && !isManual) {
+      if (reviewBanner) reviewBanner.classList.remove('hidden');
+      if (reviewReason) {
+        const customNote = (wall.notes && wall.notes.length > 0) ? wall.notes.join(' | ') : null;
+        reviewReason.textContent = customNote || 'No explicit height found on referenced detail; defaulted to 10.0 ft. Estimator review required.';
+      }
+      if (verifiedBanner) verifiedBanner.classList.add('hidden');
+    } else {
+      if (reviewBanner) reviewBanner.classList.add('hidden');
+      if (verifiedBanner) {
+        verifiedBanner.classList.remove('hidden');
+        if (verifiedDetail) {
+          verifiedDetail.textContent = wall.section_callout_tag ? `${wall.section_callout_tag} (${Number(wall.height_ft || 10).toFixed(1)} ft)` : `${Number(wall.height_ft || 10).toFixed(1)} ft`;
+        }
+      }
     }
 
     // Editable Tag Dropdown
@@ -869,7 +937,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const trackLF = grossLF + netLF;
 
     const propEntityType = document.getElementById('prop-entity-type');
-    if (propEntityType) propEntityType.textContent = `${wall.is_manual ? 'Manual' : 'Traced'} Interior Partition (Tag ${wall.tag})`;
+    if (propEntityType) propEntityType.textContent = `${isManual ? 'Manual' : 'Traced'} Interior Partition (Tag ${wall.tag})`;
 
     const propGross = document.getElementById('prop-gross-lf');
     if (propGross) propGross.textContent = `${grossLF.toFixed(2)} LF`;
@@ -889,48 +957,87 @@ document.addEventListener('DOMContentLoaded', () => {
     const propTrack = document.getElementById('prop-track-lf');
     if (propTrack) propTrack.textContent = `${trackLF.toFixed(2)} LF (Runner + Plate)`;
 
-    // Wall Thickness
+    // Rich Wall Thickness (Measured vs Nominal)
     const propThick = document.getElementById('prop-thickness');
     if (propThick) {
       if (wall.thickness_in !== undefined && wall.thickness_in !== null) {
-        const src = wall.thickness_measured ? 'Measured' : 'Nominal';
-        propThick.textContent = `${Number(wall.thickness_in).toFixed(2)}" (${src})`;
-        propThick.className = wall.thickness_measured ? 'text-emerald-400 font-bold' : 'text-[#cbd5e1] font-bold';
+        const thickNum = Number(wall.thickness_in);
+        const fracStr = formatArchitecturalInches(thickNum);
+        const isMeasured = !!wall.thickness_measured;
+        const badgeClass = isMeasured
+          ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/30'
+          : 'bg-[#1e293b] text-[#94a3b8] border border-[#334155]';
+        const label = isMeasured ? 'CAD Measured' : 'Nominal';
+
+        propThick.innerHTML = `
+          <div class="flex items-center gap-1.5 justify-end">
+            <span class="${isMeasured ? 'text-emerald-400' : 'text-white'} font-bold">${thickNum.toFixed(2)}" (${fracStr})</span>
+            <span class="text-[9px] px-1 py-0.2 font-mono uppercase ${badgeClass}">${label}</span>
+          </div>
+        `;
       } else {
         propThick.textContent = '—';
         propThick.className = 'text-[#64748b] font-bold';
       }
     }
 
-    // Height Verification Status
+    // Height Verification Status & Section Callout Tag
     const propHeightVer = document.getElementById('prop-height-verification');
     if (propHeightVer) {
-      if (wall.is_height_verified) {
-        const callout = wall.section_callout_tag ? ` (${wall.section_callout_tag})` : '';
-        propHeightVer.textContent = `VERIFIED${callout}`;
-        propHeightVer.className = 'text-emerald-400 font-bold';
+      if (isVerified) {
+        propHeightVer.innerHTML = `<span class="text-emerald-400 font-bold">VERIFIED (${heightFt.toFixed(1)} ft)</span>`;
       } else {
-        const src = wall.height_source || 'Default 10.0ft';
-        propHeightVer.textContent = `REVIEW (${src})`;
-        propHeightVer.className = 'text-amber-400 font-bold';
+        propHeightVer.innerHTML = `<span class="text-amber-400 font-bold">REVIEW (10.0 ft Fallback)</span>`;
       }
     }
 
-    // Structured Layer Stack Breakdown
+    const propCallout = document.getElementById('prop-section-callout');
+    if (propCallout) {
+      propCallout.textContent = wall.section_callout_tag || 'None within 120pt';
+      propCallout.className = wall.section_callout_tag ? 'text-primary font-mono font-bold' : 'text-[#64748b] font-mono';
+    }
+
+    const propHeightSource = document.getElementById('prop-height-source');
+    if (propHeightSource) {
+      const srcText = wall.height_source || (isVerified ? 'Section Detail' : 'UNVERIFIED_HEIGHT_DEFAULT');
+      propHeightSource.textContent = srcText;
+      propHeightSource.title = srcText;
+      propHeightSource.className = isVerified ? 'text-emerald-400 font-mono text-right truncate max-w-[170px]' : 'text-amber-400 font-mono text-right truncate max-w-[170px]';
+    }
+
+    // Structured Material Layer Stack Breakdown (Face A, Core, Face B)
     const layersListEl = document.getElementById('prop-material-layers-list');
     const layersCountEl = document.getElementById('prop-layers-count');
-    const layers = wall.material_layers || [];
+    let layers = (wall.material_layers && wall.material_layers.length > 0)
+      ? wall.material_layers
+      : (tagInfo.material_layers || []);
+
     if (layersCountEl) layersCountEl.textContent = `${layers.length} Layers`;
     if (layersListEl) {
       if (layers.length > 0) {
-        layersListEl.innerHTML = layers.map((l, idx) => `
-          <div class="py-1 flex items-start justify-between gap-2 text-[11px]">
-            <span class="text-primary font-mono text-[10px] uppercase whitespace-nowrap">${l.side || `Layer ${idx + 1}`}</span>
-            <span class="text-white text-right leading-tight">${l.material || 'Gypsum Board'}</span>
-          </div>
-        `).join('');
+        layersListEl.innerHTML = layers.map((l, idx) => {
+          const side = (l.side || `Layer ${idx + 1}`).trim();
+          let sideBadgeClass = 'bg-primary/10 text-primary border-primary/30';
+          if (side.toLowerCase().includes('face a')) {
+            sideBadgeClass = 'bg-primary/10 text-primary border-primary/30';
+          } else if (side.toLowerCase().includes('core')) {
+            sideBadgeClass = 'bg-amber-950/40 text-amber-300 border-amber-500/30';
+          } else if (side.toLowerCase().includes('face b')) {
+            sideBadgeClass = 'bg-blue-950/40 text-blue-300 border-blue-500/30';
+          }
+
+          return `
+            <div class="p-1.5 bg-[#070b13] border border-[#1f2937] flex items-start gap-2 text-[11px]">
+              <span class="px-1.5 py-0.5 text-[9px] font-bold font-mono uppercase border shrink-0 ${sideBadgeClass}">${side}</span>
+              <div class="flex-1">
+                <div class="text-white font-medium leading-tight">${l.material || 'Gypsum Board'}</div>
+                <div class="text-[10px] text-[#64748b] font-mono mt-0.5">${l.layer ? `Layer: ${l.layer}` : 'Standard Assembly Layer'}</div>
+              </div>
+            </div>
+          `;
+        }).join('');
       } else {
-        layersListEl.innerHTML = '<div class="text-[11px] text-[#64748b] font-mono py-1">No structured layer data available.</div>';
+        layersListEl.innerHTML = '<div class="text-[11px] text-[#64748b] font-mono py-1">No structured layer breakdown available for this tag.</div>';
       }
     }
 
@@ -1031,6 +1138,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (tagEl) tagEl.textContent = 'No Wall Selected';
     const sheetEl = document.getElementById('inspector-wall-sheet');
     if (sheetEl) sheetEl.textContent = '';
+    const statusEl = document.getElementById('inspector-audit-badge');
+    if (statusEl) {
+      statusEl.textContent = 'NO SELECTION';
+      statusEl.className = 'bg-[#1e293b] text-[#94a3b8] border border-[#334155] px-1.5 py-0.5 text-[10px] font-mono';
+    }
+    const reviewBanner = document.getElementById('inspector-review-banner');
+    if (reviewBanner) reviewBanner.classList.add('hidden');
+    const verifiedBanner = document.getElementById('inspector-verified-banner');
+    if (verifiedBanner) verifiedBanner.classList.add('hidden');
     const propGross = document.getElementById('prop-gross-lf');
     if (propGross) propGross.textContent = '0.00 LF';
     const propDeduct = document.getElementById('prop-deduct-lf');
@@ -1043,8 +1159,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (propStuds) propStuds.textContent = '0 EA';
     const propTrack = document.getElementById('prop-track-lf');
     if (propTrack) propTrack.textContent = '0.00 LF';
+    const propThick = document.getElementById('prop-thickness');
+    if (propThick) propThick.textContent = '—';
+    const propHeightVer = document.getElementById('prop-height-verification');
+    if (propHeightVer) propHeightVer.textContent = '—';
+    const propCallout = document.getElementById('prop-section-callout');
+    if (propCallout) propCallout.textContent = '—';
+    const propHeightSource = document.getElementById('prop-height-source');
+    if (propHeightSource) propHeightSource.textContent = '—';
     const openList = document.getElementById('inspector-openings-list');
     if (openList) openList.innerHTML = '<div class="text-[11px] text-[#64748b] font-mono">Select a wall on canvas.</div>';
+    const layersListEl = document.getElementById('prop-material-layers-list');
+    if (layersListEl) layersListEl.innerHTML = '<div class="text-[11px] text-[#64748b] font-mono py-1">Select a wall to view layer breakdown.</div>';
   }
 
   // ===========================================================================
@@ -1407,10 +1533,106 @@ document.addEventListener('DOMContentLoaded', () => {
   // TAKEOFF SCHEDULE DOCK & BI-DIRECTIONAL LINKING
   // ===========================================================================
 
+  function formatThickness(thicknessIn, isMeasured) {
+    if (thicknessIn === null || thicknessIn === undefined || isNaN(thicknessIn)) {
+      return '<span class="text-[#64748b]">—</span>';
+    }
+    const val = Number(thicknessIn);
+    const decStr = val.toFixed(2) + '"';
+
+    // Nearest 1/8" architectural fraction string for tooltip
+    const whole = Math.floor(val);
+    const frac = val - whole;
+    const eighths = Math.round(frac * 8);
+    let fracStr = '';
+    if (eighths === 0) {
+      fracStr = `${whole}"`;
+    } else if (eighths === 8) {
+      fracStr = `${whole + 1}"`;
+    } else {
+      let num = eighths;
+      let den = 8;
+      if (num % 4 === 0) { num /= 4; den /= 4; }
+      else if (num % 2 === 0) { num /= 2; den /= 2; }
+      fracStr = whole > 0 ? `${whole}-${num}/${den}"` : `${num}/${den}"`;
+    }
+
+    const badge = isMeasured
+      ? '<span class="px-1 py-0.2 text-[9px] bg-cyan-950/70 text-cyan-300 border border-cyan-500/40 font-bold ml-1 tracking-tight" title="Measured from vector linework">MEAS</span>'
+      : '<span class="px-1 py-0.2 text-[9px] bg-slate-800 text-slate-400 border border-slate-600/50 font-bold ml-1 tracking-tight" title="Nominal schedule thickness">NOM</span>';
+
+    return `<span class="font-bold text-white" title="${val.toFixed(3)} in">${decStr} <span class="text-[#94a3b8] text-[10px]">(${fracStr})</span></span> ${badge}`;
+  }
+
+  function formatHeightSource(source, calloutTag, isVerified) {
+    if (isVerified) {
+      const label = source || calloutTag || 'Section Verified';
+      return `<span class="text-emerald-400 font-sans truncate max-w-[140px] inline-flex items-center gap-1" title="${label}">
+        <span class="material-symbols-outlined text-[13px]">bookmark</span>${label}
+      </span>`;
+    } else {
+      const label = (source && source !== 'UNVERIFIED_HEIGHT_DEFAULT') ? source : 'Default 10ft Fallback';
+      return `<span class="text-amber-400 font-sans truncate max-w-[140px] inline-flex items-center gap-1" title="${source || 'Unverified standard 10ft fallback; review required'}">
+        <span class="material-symbols-outlined text-[13px]">help_outline</span>${label}
+      </span>`;
+    }
+  }
+
+  function formatStatusBadge(status, isHeightVerified, notes) {
+    const isOk = (status === 'VERIFIED' || status === 'OK') && isHeightVerified !== false;
+    if (isOk) {
+      return `<span class="px-2 py-0.5 bg-emerald-500/15 text-emerald-400 text-[10px] border border-emerald-500/30 font-bold flex items-center justify-center gap-1">
+        <span class="material-symbols-outlined text-[12px]">verified</span>VERIFIED
+      </span>`;
+    } else {
+      const tooltip = (notes && notes.length) ? notes.join('; ') : 'Unverified height fallback; estimator review required';
+      return `<span class="px-2 py-0.5 bg-amber-500/15 text-amber-400 text-[10px] border border-amber-500/30 font-bold flex items-center justify-center gap-1" title="${tooltip}">
+        <span class="material-symbols-outlined text-[12px]">warning</span>REVIEW
+      </span>`;
+    }
+  }
+
   function populateBottomSchedule() {
-    const tbody = document.getElementById('schedule-table-body');
+    const tbody = document.getElementById('schedule-table-body') || document.getElementById('scheduleBody');
     if (!tbody) return;
     tbody.innerHTML = '';
+
+    // Calculate filter counts across entire dataset
+    const totalAll = state.walls.length;
+    const verifiedWalls = state.walls.filter(w => (w.status === 'VERIFIED' || w.status === 'OK') && w.is_height_verified !== false);
+    const reviewWalls = state.walls.filter(w => w.status === 'REVIEW' || w.is_height_verified === false);
+
+    const countAllEl = document.getElementById('sched-count-all');
+    if (countAllEl) countAllEl.textContent = totalAll;
+    const countVerEl = document.getElementById('sched-count-verified');
+    if (countVerEl) countVerEl.textContent = verifiedWalls.length;
+    const countRevEl = document.getElementById('sched-count-review');
+    if (countRevEl) countRevEl.textContent = reviewWalls.length;
+
+    // Update filter button styling
+    ['all', 'verified', 'review'].forEach(mode => {
+      const btn = document.getElementById(`sched-filter-${mode}`);
+      if (!btn) return;
+      if (mode === state.scheduleFilter) {
+        if (mode === 'review') {
+          btn.className = 'px-2 py-0.5 text-xs font-mono font-bold transition-colors bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center gap-1';
+        } else if (mode === 'verified') {
+          btn.className = 'px-2 py-0.5 text-xs font-mono font-bold transition-colors bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
+        } else {
+          btn.className = 'px-2 py-0.5 text-xs font-mono font-bold transition-colors bg-primary/20 text-primary border border-primary/30';
+        }
+      } else {
+        btn.className = 'px-2 py-0.5 text-xs font-mono transition-colors text-[#94a3b8] hover:text-white flex items-center gap-1 border border-transparent';
+      }
+    });
+
+    // Apply active filter
+    let displayedWalls = state.walls;
+    if (state.scheduleFilter === 'review') {
+      displayedWalls = reviewWalls;
+    } else if (state.scheduleFilter === 'verified') {
+      displayedWalls = verifiedWalls;
+    }
 
     let totalGross = 0;
     let totalDeduct = 0;
@@ -1419,11 +1641,25 @@ document.addEventListener('DOMContentLoaded', () => {
     let totalStuds = 0;
     let totalTrack = 0;
 
-    state.walls.forEach(w => {
+    if (displayedWalls.length === 0) {
+      const emptyTr = document.createElement('tr');
+      emptyTr.innerHTML = `
+        <td colspan="16" class="py-8 text-center text-[#94a3b8] font-sans">
+          <div class="flex flex-col items-center justify-center gap-1">
+            <span class="material-symbols-outlined text-[24px] text-emerald-400">check_circle</span>
+            <span class="font-bold text-white">No ${state.scheduleFilter === 'review' ? 'unverified review' : ''} wall runs found.</span>
+            <span class="text-xs text-[#64748b]">${state.scheduleFilter === 'review' ? 'All partition walls have verified heights from architectural section details.' : 'No wall runs match current filter.'}</span>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(emptyTr);
+    }
+
+    displayedWalls.forEach(w => {
       const gross = w.gross_length_ft || 0;
       const deduct = w.opening_deduction_ft || 0;
       const net = w.net_length_ft !== undefined ? w.net_length_ft : (gross - deduct);
-      const height = w.height_ft || 10.0;
+      const height = (w.height_ft !== null && w.height_ft !== undefined) ? Number(w.height_ft) : 10.0;
       const tagInfo = (state.summary && state.summary.by_tag && state.summary.by_tag[w.tag]) || {};
       const faces = tagInfo.faces || 2;
       const layers = tagInfo.layers_per_face || 1;
@@ -1441,12 +1677,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const isManual = !!w.is_manual;
       const isHeightVerified = !!w.is_height_verified;
-      const heightNote = isHeightVerified
-        ? `${height}ft H - Sec ${w.section_callout_tag || 'Verified'}`
-        : `${height}ft H - Fallback`;
-      const statusBadge = isHeightVerified
-        ? `<span class="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] border border-emerald-500/20 font-bold">VERIFIED</span>`
-        : `<span class="px-2 py-0.5 bg-amber-500/10 text-amber-400 text-[10px] border border-amber-500/20 font-bold" title="Default 10ft fallback used; estimator review required">REVIEW</span>`;
+      const formattedThickness = formatThickness(w.thickness_in, w.thickness_measured);
+      const formattedHeight = `<span class="font-bold text-white">${height.toFixed(2)} ft</span>`;
+      const formattedSource = formatHeightSource(w.height_source, w.section_callout_tag, isHeightVerified);
+      const statusBadge = formatStatusBadge(w.status, isHeightVerified, w.notes);
 
       const tr = document.createElement('tr');
       tr.className = `hover:bg-[#131e33] cursor-pointer sched-row ${state.selectedWall && state.selectedWall.run_id === w.run_id ? 'bg-primary/20 border-l-2 border-primary' : ''}`;
@@ -1455,7 +1689,10 @@ document.addEventListener('DOMContentLoaded', () => {
         <td class="py-2 px-3 text-primary font-bold">${w.run_id}</td>
         <td class="py-2 px-3 font-semibold text-white"><span class="bg-[#1e293b] px-1.5 py-0.5 border border-[#334155]">${w.tag}</span></td>
         <td class="py-2 px-3"><span class="px-1.5 py-0.5 text-[9px] font-bold ${isManual ? 'bg-purple-950/60 text-purple-300 border border-purple-500/40' : 'bg-blue-950/60 text-blue-300 border border-blue-500/40'}">${isManual ? 'MANUAL' : 'DETECTED'}</span></td>
-        <td class="py-2 px-3 font-sans text-[#cbd5e1] truncate max-w-[200px]">Partition Tag ${w.tag} (${heightNote})</td>
+        <td class="py-2 px-3 font-sans text-[#cbd5e1] truncate max-w-[180px]">Partition Tag ${w.tag}</td>
+        <td class="py-2 px-3 text-right whitespace-nowrap">${formattedThickness}</td>
+        <td class="py-2 px-3 text-right whitespace-nowrap">${formattedHeight}</td>
+        <td class="py-2 px-3 whitespace-nowrap">${formattedSource}</td>
         <td class="py-2 px-3 text-right">${gross.toFixed(2)}</td>
         <td class="py-2 px-3 text-right text-amber-400">-${deduct.toFixed(2)}</td>
         <td class="py-2 px-3 text-right font-bold text-primary">${net.toFixed(2)}</td>
@@ -1479,15 +1716,19 @@ document.addEventListener('DOMContentLoaded', () => {
         viewer.highlightWall(w.run_id, false);
       });
 
-      // Row click centers canvas on wall and selects it
+      // Row click navigates to page, centers canvas on wall, and selects it
       tr.addEventListener('click', () => {
+        if (w.page_num && w.page_num !== state.currentPage) {
+          goToPage(w.page_num);
+        }
         viewer.centerOnWall(w.run_id);
+        if (!state.rightDrawerOpen) toggleRightDrawer(true);
       });
 
       tbody.appendChild(tr);
     });
 
-    // Summary pills
+    // Summary pills in dock header
     const sumNet = document.getElementById('sched-summary-net-lf');
     if (sumNet) sumNet.textContent = `${totalNet.toFixed(2)} LF`;
     const sumSf = document.getElementById('sched-summary-board-sf');
@@ -1495,22 +1736,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const sumStuds = document.getElementById('sched-summary-studs');
     if (sumStuds) sumStuds.textContent = `${totalStuds} EA`;
 
-    // Total row
+    // Pinned total row (16 columns aligned to thead)
     const totalRow = document.getElementById('schedule-table-total');
     if (totalRow) {
+      const isFiltered = state.scheduleFilter !== 'all';
+      const labelPrefix = isFiltered ? `${state.scheduleFilter.toUpperCase()} TOTAL` : 'TOTAL';
       totalRow.innerHTML = `
-        <td class="py-2 px-3 text-primary font-bold">TOTAL</td>
-        <td class="py-2 px-3 text-white font-bold">${state.walls.length} Runs</td>
+        <td class="py-2 px-3 text-primary font-bold">${labelPrefix}</td>
+        <td class="py-2 px-3 text-white font-bold">${displayedWalls.length} Runs</td>
         <td class="py-2 px-3"></td>
-        <td class="py-2 px-3 font-sans text-[#94a3b8]">Consolidated Bill of Materials</td>
-        <td class="py-2 px-3 text-right font-bold">${totalGross.toFixed(2)}</td>
+        <td class="py-2 px-3 font-sans text-[#94a3b8] truncate max-w-[180px]">Consolidated Bill of Materials</td>
+        <td class="py-2 px-3 text-right text-[#94a3b8]">—</td>
+        <td class="py-2 px-3 text-right text-[#94a3b8]">—</td>
+        <td class="py-2 px-3 text-[#94a3b8]">—</td>
+        <td class="py-2 px-3 text-right font-bold text-white">${totalGross.toFixed(2)}</td>
         <td class="py-2 px-3 text-right font-bold text-amber-400">-${totalDeduct.toFixed(2)}</td>
         <td class="py-2 px-3 text-right font-bold text-primary">${totalNet.toFixed(2)}</td>
         <td class="py-2 px-3 text-right font-bold text-white">${totalSF.toFixed(2)}</td>
-        <td class="py-2 px-3 text-right font-bold">${totalStuds}</td>
-        <td class="py-2 px-3 text-right font-bold">${totalTrack.toFixed(2)}</td>
+        <td class="py-2 px-3 text-right font-bold text-white">${totalStuds}</td>
+        <td class="py-2 px-3 text-right font-bold text-white">${totalTrack.toFixed(2)}</td>
         <td class="py-2 px-3"></td>
-        <td class="py-2 px-3 text-center"><span class="px-2 py-0.5 bg-primary/20 text-primary text-[10px] border border-primary/30">0% WASTE</span></td>
+        <td class="py-2 px-3 text-center">
+          <span class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-[#070b13] border border-[#1f2937] text-[10px]">
+            <span class="text-emerald-400 font-bold flex items-center gap-0.5" title="Verified wall runs count"><span class="material-symbols-outlined text-[11px]">check</span>${verifiedWalls.length}</span>
+            <span class="text-[#64748b]">/</span>
+            <span class="text-amber-400 font-bold flex items-center gap-0.5" title="Unverified/review runs count"><span class="material-symbols-outlined text-[11px]">warning</span>${reviewWalls.length}</span>
+          </span>
+        </td>
         <td class="py-2 px-3"></td>
       `;
     }

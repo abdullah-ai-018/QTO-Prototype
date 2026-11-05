@@ -316,3 +316,32 @@ header {
   display: block;
 }
 
+/* Schedule Dock Segmented Filter Control & Pinned Headers */
+#sched-filter-all, #sched-filter-verified, #sched-filter-review {
+  cursor: pointer;
+  user-select: none;
+  border-radius: 0px !important;
+}
+
+#sched-drawer table {
+  min-width: 1400px;
+}
+
+#sched-drawer table thead th {
+  user-select: none;
+  background-color: #0b121e;
+}
+
+#sched-drawer table tfoot td {
+  background-color: #0c121e;
+}
+
+/* Fast CAD HUD Hover Popover */
+.cad-hover-hud {
+  border-radius: 0px !important;
+  max-width: 280px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+
+

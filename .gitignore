@@ -1,21 +1,144 @@
+# ==============================================================================
+# Drywall QTO Workbench (.gitignore)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Environment Variables & Secret Credentials
+# ------------------------------------------------------------------------------
 .env
 .env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+env
+*.env
 !.env.example
+!env.example
 
+# ------------------------------------------------------------------------------
+# 2. Python Virtual Environments & Distributions
+# ------------------------------------------------------------------------------
 env/
 venv/
 .venv/
-__pycache__/
-*.pyc
-
-node_modules/
-dist/
+ENV/
+env.bak/
+venv.bak/
 build/
-.next/
+dist/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+pip-wheel-metadata/
 
+# ------------------------------------------------------------------------------
+# 3. Python Bytecode, Caching & Testing Artifacts
+# ------------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.mypy_cache/
+.pyre/
+.pytype/
+.ruff_cache/
+
+# ------------------------------------------------------------------------------
+# 4. Pipeline Execution Runs, Uploads & Large Blueprint PDFs
+# ------------------------------------------------------------------------------
+# All generated takeoff run directories (contains output.json, annotated PDFs, qto.xlsx)
 runs/
+# User-uploaded blueprint PDFs (heavy multi-megabyte PDFs)
 uploads/
+# Temporary raster and PDF caching
 storage/
 
+# Ignore all generated and local blueprint PDFs...
 *.pdf
+# ...EXCEPT for required automated test fixtures
+!tests/fixtures/*.pdf
+
+# Local generated takeoff Excel files (outside test fixtures)
+*.xlsx
+*.xls
+!tests/fixtures/*.xlsx
+
+# ------------------------------------------------------------------------------
+# 5. Agentic AI & Scratch Artifacts
+# ------------------------------------------------------------------------------
 .agents/
+scratch/
+*.log
+
+# ------------------------------------------------------------------------------
+# 6. Node.js & Frontend Tooling (If Used in Submodules)
+# ------------------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.next/
+out/
+
+# ------------------------------------------------------------------------------
+# 7. Operating System & Editor Files
+# ------------------------------------------------------------------------------
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# IDEs & Editors
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~

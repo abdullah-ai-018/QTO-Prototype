@@ -709,6 +709,16 @@ async def download_takeoff_excel(run_id: str):
     """Streams generated 7-sheet qto.xlsx workbook download."""
     excel_path = RUNS_DIR / run_id / "qto.xlsx"
     if not excel_path.exists():
+        output_json = RUNS_DIR / run_id / "output.json"
+        if output_json.exists():
+            try:
+                with open(output_json, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                recalculate_run_state(run_id, data)
+            except Exception as e:
+                print(f"[EXCEL DOWNLOAD] Warning: On-demand excel generation failed: {e}")
+
+    if not excel_path.exists():
         raise HTTPException(
             status_code=404,
             detail=f"Takeoff Excel file for run '{run_id}' not found.",
@@ -1370,6 +1380,40 @@ async def update_wall_markup(run_id: str, wall_id: str, req: WallUpdateRequest):
 
         if req.height_ft is not None:
             target_run["height_ft"] = float(req.height_ft)
+            if req.is_height_verified is None:
+                target_run["is_height_verified"] = True
+                target_run["is_manual"] = True
+                target_run["height_source"] = "ESTIMATOR_VERIFIED"
+                if target_run.get("status") == "REVIEW":
+                    target_run["status"] = "OK"
+
+        if req.is_height_verified is not None:
+            target_run["is_height_verified"] = bool(req.is_height_verified)
+            if req.is_height_verified and target_run.get("status") == "REVIEW":
+                target_run["status"] = "OK"
+            elif not req.is_height_verified:
+                target_run["status"] = "REVIEW"
+
+        if req.status is not None:
+            target_run["status"] = req.status
+
+        if req.height_source is not None:
+            target_run["height_source"] = req.height_source
+
+        if req.thickness_in is not None:
+            target_run["thickness_in"] = round(float(req.thickness_in), 3)
+            if req.thickness_measured is not None:
+                target_run["thickness_measured"] = bool(req.thickness_measured)
+
+        if req.gross_length_ft is not None and req.start is None and req.end is None:
+            target_run["gross_length_ft"] = round(float(req.gross_length_ft), 2)
+            ded = float(target_run.get("opening_deduction_ft", 0.0))
+            target_run["net_length_ft"] = max(0.0, round(target_run["gross_length_ft"] - ded, 2))
+
+        if req.opening_deduction_ft is not None and req.openings is None:
+            target_run["opening_deduction_ft"] = round(float(req.opening_deduction_ft), 2)
+            grs = float(target_run.get("gross_length_ft", 0.0))
+            target_run["net_length_ft"] = max(0.0, round(grs - target_run["opening_deduction_ft"], 2))
 
         if req.openings is not None:
             data["openings"] = [op for op in data.get("openings", []) if op.get("wall_run_id") != wall_id]
@@ -1420,7 +1464,12 @@ async def update_wall_markup(run_id: str, wall_id: str, req: WallUpdateRequest):
             "net_linear_footage": data["total_net_lf"],
             "net_board_footage": data["total_board_sf"],
             "total_studs_ea": data.get("total_studs_ea", 0),
+            "total_stud_lf": data.get("total_stud_lf", 0.0),
             "total_track_lf": data.get("total_track_lf", 0.0),
+            "verified_height_count": data.get("verified_height_count", 0),
+            "unverified_height_count": data.get("unverified_height_count", 0),
+            "review_items_count": len(data.get("review_items", [])),
+            "review_items": data.get("review_items", []),
             "by_tag": data.get("by_tag", {}),
         }
 
@@ -1433,6 +1482,18 @@ async def update_wall_markup(run_id: str, wall_id: str, req: WallUpdateRequest):
             "net_length_ft": target_run["net_length_ft"],
             "is_manual": bool(target_run.get("is_manual", False)),
         }
+
+
+@app.post("/api/runs/update")
+async def post_runs_update(req: RunUpdateRequest):
+    """POST endpoint alias for updating a wall run matching requirement contract."""
+    return await update_wall_markup(run_id=req.run_id, wall_id=req.wall_id, req=req)
+
+
+@app.post("/api/blueprint/{run_id}/walls/{wall_id}")
+async def post_wall_markup(run_id: str, wall_id: str, req: WallUpdateRequest):
+    """POST alias for PATCH /api/blueprint/{run_id}/walls/{wall_id}."""
+    return await update_wall_markup(run_id=run_id, wall_id=wall_id, req=req)
 
 
 @app.delete("/api/blueprint/{run_id}/walls/{wall_id}", response_model=WallDeleteResponse)

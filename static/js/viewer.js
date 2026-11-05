@@ -423,26 +423,37 @@ class CADCanvasViewer {
       badgeRect.addEventListener('click', selectHandler);
       textNode.addEventListener('click', selectHandler);
 
-      // Bi-directional hover handlers
-      group.addEventListener('mouseenter', () => {
+      // Bi-directional hover handlers with Instant CAD HUD Popover
+      group.addEventListener('mouseenter', (e) => {
         this.onWallHover(wall.run_id, true);
+        this._showHoverHUD(wall, e);
+      });
+      group.addEventListener('mousemove', (e) => {
+        this._moveHoverHUD(e);
       });
       group.addEventListener('mouseleave', () => {
         this.onWallHover(wall.run_id, false);
+        this._hideHoverHUD();
       });
 
       // Hover Tooltip via SVG <title>
       const tooltip = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-      let tooltipText = `DRYWALL WALL: ${wall.tag || 'DRW'} [${wall.run_id}]\n` +
-        `Gross LF: ${(wall.gross_length_ft || 0).toFixed(2)}' | Net LF: ${(wall.net_length_ft || 0).toFixed(2)}'\n`;
+      const isHVer = !!wall.is_height_verified;
+      let tooltipText = `DRYWALL PARTITION: Tag ${wall.tag || 'DRW'} [${wall.run_id}]\n` +
+        `Gross: ${(wall.gross_length_ft || 0).toFixed(2)} LF | Deduct: -${(wall.opening_deduction_ft || 0).toFixed(2)} LF | Net: ${(wall.net_length_ft || 0).toFixed(2)} LF\n`;
+
       if (wall.thickness_in !== undefined && wall.thickness_in !== null) {
-        tooltipText += `Thickness: ${Number(wall.thickness_in).toFixed(2)}" (${wall.thickness_measured ? 'Measured' : 'Nominal'})\n`;
+        tooltipText += `Thickness: ${Number(wall.thickness_in).toFixed(2)}" (${wall.thickness_measured ? 'CAD Measured' : 'Schedule Nominal'})\n`;
       }
       if (wall.height_ft !== undefined && wall.height_ft !== null) {
-        const hSrc = wall.section_callout_tag ? ` - ${wall.section_callout_tag}` : '';
-        tooltipText += `Height: ${Number(wall.height_ft).toFixed(1)}' (${wall.is_height_verified ? 'Verified' : 'Review'}${hSrc})\n`;
+        const secTag = wall.section_callout_tag ? ` [Section: ${wall.section_callout_tag}]` : '';
+        tooltipText += `Height: ${Number(wall.height_ft).toFixed(1)} ft (${isHVer ? 'VERIFIED' : 'REVIEW REQUIRED'}${secTag})\n`;
+        tooltipText += `Height Source: ${wall.height_source || (isHVer ? 'Section Detail' : 'UNVERIFIED_HEIGHT_DEFAULT')}\n`;
       }
-      tooltipText += `Status: ${wall.status || 'VERIFIED'}`;
+      if (!isHVer && !wall.is_manual) {
+        tooltipText += `Review Note: No explicit height found on referenced detail; defaulted to 10.0 ft.\n`;
+      }
+      tooltipText += `Status: ${wall.status || (isHVer ? 'VERIFIED' : 'REVIEW')}`;
       if (wall.material_layers && Array.isArray(wall.material_layers) && wall.material_layers.length > 0) {
         const layerStr = wall.material_layers.map(l => `${l.side || ''}: ${l.material || ''}`).join(' | ');
         tooltipText += `\nLayers: ${layerStr}`;
@@ -609,6 +620,7 @@ class CADCanvasViewer {
   deselectWall() {
     this.selectedWallId = null;
     this.renderWallVectors();
+    this.onWallSelected(null);
   }
 
   highlightWall(wallId, highlight) {
@@ -815,6 +827,55 @@ class CADCanvasViewer {
     group.appendChild(p2);
     group.appendChild(rect);
     group.appendChild(text);
+  }
+
+  _showHoverHUD(wall, e) {
+    const hud = document.getElementById('cad-hover-hud');
+    if (!hud) return;
+    const titleEl = document.getElementById('cad-hud-title');
+    const badgeEl = document.getElementById('cad-hud-badge');
+    const lfEl = document.getElementById('cad-hud-lf');
+    const thickEl = document.getElementById('cad-hud-thick');
+    const heightEl = document.getElementById('cad-hud-height');
+    const calloutEl = document.getElementById('cad-hud-callout');
+
+    const isVerified = !!wall.is_height_verified && wall.status !== 'REVIEW';
+    if (titleEl) titleEl.innerHTML = `<span>TAG ${wall.tag || 'DRW'} [${wall.run_id}]</span>`;
+    if (badgeEl) {
+      badgeEl.textContent = isVerified ? 'VERIFIED' : 'REVIEW';
+      badgeEl.className = isVerified
+        ? 'px-1 py-0.2 text-[9px] bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 font-bold'
+        : 'px-1 py-0.2 text-[9px] bg-amber-950/60 text-amber-400 border border-amber-500/30 font-bold';
+    }
+    if (lfEl) lfEl.textContent = `${(wall.net_length_ft || 0).toFixed(2)}'`;
+    if (thickEl) {
+      const isM = !!wall.thickness_measured;
+      thickEl.textContent = wall.thickness_in ? `${Number(wall.thickness_in).toFixed(2)}" (${isM ? 'M' : 'Nom'})` : '—';
+      thickEl.className = isM ? 'text-emerald-400 font-bold' : 'text-white font-bold';
+    }
+    if (heightEl) heightEl.textContent = `${Number(wall.height_ft || 10).toFixed(1)}'`;
+    if (calloutEl) {
+      calloutEl.textContent = wall.section_callout_tag || 'None';
+      calloutEl.className = wall.section_callout_tag ? 'text-primary font-bold' : 'text-[#64748b]';
+    }
+
+    this._moveHoverHUD(e);
+    hud.classList.remove('hidden');
+  }
+
+  _moveHoverHUD(e) {
+    const hud = document.getElementById('cad-hover-hud');
+    if (!hud) return;
+    const rect = this.container.getBoundingClientRect();
+    const x = e.clientX - rect.left + 14;
+    const y = e.clientY - rect.top + 14;
+    hud.style.left = `${x}px`;
+    hud.style.top = `${y}px`;
+  }
+
+  _hideHoverHUD() {
+    const hud = document.getElementById('cad-hover-hud');
+    if (hud) hud.classList.add('hidden');
   }
 }
 

@@ -212,6 +212,20 @@
           <svg id="svg-overlay" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>
 
+        <!-- Instant CAD HUD Hover Popover -->
+        <div id="cad-hover-hud" class="cad-hover-hud pointer-events-none hidden absolute z-30 bg-[#0c121e]/95 backdrop-blur border border-primary/40 p-2 shadow-2xl text-[11px] font-mono text-white transition-opacity duration-75">
+          <div id="cad-hud-title" class="font-bold text-primary flex items-center justify-between gap-2 border-b border-[#1f2937] pb-1 mb-1">
+            <span>TAG 7A [RUN-001]</span>
+            <span id="cad-hud-badge" class="px-1 py-0.2 text-[9px] bg-emerald-950/60 text-emerald-400 border border-emerald-500/30">VERIFIED</span>
+          </div>
+          <div class="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
+            <div><span class="text-[#94a3b8]">Net LF:</span> <strong id="cad-hud-lf" class="text-white">112.71'</strong></div>
+            <div><span class="text-[#94a3b8]">Thick:</span> <strong id="cad-hud-thick" class="text-emerald-400">4.88" (M)</strong></div>
+            <div><span class="text-[#94a3b8]">Height:</span> <strong id="cad-hud-height" class="text-white">8.0'</strong></div>
+            <div><span class="text-[#94a3b8]">Section:</span> <strong id="cad-hud-callout" class="text-primary">A-706 / 09</strong></div>
+          </div>
+        </div>
+
         <!-- HUD: Bottom-Left Scale & Coordinates -->
         <div class="absolute bottom-6 left-6 bg-[#0c121e]/90 backdrop-blur border border-[#1f2937] px-3 py-1.5 text-xs font-mono text-[#dde2f8] shadow-2xl flex items-center gap-3 pointer-events-none">
           <span id="hud-sheet-label">SHEET #01</span>
@@ -305,16 +319,16 @@
     </main>
 
     <!-- Right Collapsible Slide-Out Drawer (340px) — "INSPECTOR & PROVENANCE" -->
-    <aside id="right-drawer" class="w-[340px] bg-[#0d1524] border-l border-[#1f2937] flex flex-col shrink-0 z-20 drawer-transition">
+    <aside id="right-drawer" data-testid="wallInspector" class="w-[340px] bg-[#0d1524] border-l border-[#1f2937] flex flex-col shrink-0 z-20 drawer-transition">
       <!-- Drawer Header -->
       <div class="p-3 border-b border-[#1f2937]/80">
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-1.5">
             <span class="material-symbols-outlined text-[16px] text-primary">info</span>
-            <span class="font-mono text-xs font-semibold text-white tracking-wider">INSPECTOR</span>
+            <span class="font-mono text-xs font-semibold text-white tracking-wider">WALL INSPECTOR</span>
           </div>
           <div class="flex items-center gap-1">
-            <span id="inspector-audit-badge" class="bg-emerald-950/40 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-mono">VERIFIED</span>
+            <span id="inspector-audit-badge" class="bg-emerald-950/40 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-mono font-bold">VERIFIED</span>
             <button onclick="toggleRightDrawer(false)" class="text-[#64748b] hover:text-white transition-colors p-1 hover:bg-[#131e33]" title="Collapse Inspector">
               <span class="material-symbols-outlined text-[16px]">dock_to_right</span>
             </button>
@@ -323,6 +337,26 @@
         <div class="flex items-center justify-between">
           <span id="inspector-wall-tag" class="text-xs font-mono font-bold text-primary">RUN-001 · Tag 1A</span>
           <span id="inspector-wall-sheet" class="text-[10px] font-mono text-[#94a3b8]">Page 1 · A-102</span>
+        </div>
+
+        <!-- Estimator Review Required Alert Banner (Shown when height is unverified) -->
+        <div id="inspector-review-banner" class="hidden mt-2 p-2 bg-amber-950/40 border border-amber-500/40 text-[11px] font-mono text-amber-300">
+          <div class="flex items-center gap-1.5 font-bold text-amber-400 mb-0.5">
+            <span class="material-symbols-outlined text-[14px]">warning</span>
+            <span>ESTIMATOR REVIEW REQUIRED</span>
+          </div>
+          <div id="inspector-review-reason" class="text-[10px] text-amber-200/90 leading-tight">
+            No explicit height found on referenced detail; defaulted to 10.0 ft. Estimator review required.
+          </div>
+        </div>
+
+        <!-- Verified Height Banner (Shown when height is verified against detail) -->
+        <div id="inspector-verified-banner" class="hidden mt-2 p-1.5 bg-emerald-950/40 border border-emerald-500/30 text-[10px] font-mono text-emerald-300 flex items-center justify-between">
+          <span class="flex items-center gap-1">
+            <span class="material-symbols-outlined text-[13px] text-emerald-400">verified</span>
+            <span id="inspector-verified-text">Height Verified</span>
+          </span>
+          <span id="inspector-verified-detail" class="font-bold text-emerald-400 font-mono">A-706 / 09</span>
         </div>
 
         <!-- Editable Partition Tag & Wall Height -->
@@ -396,8 +430,10 @@
               <div class="py-1 flex justify-between"><span class="text-[#94a3b8]">Net Board Area</span><span id="prop-board-sf" class="text-white font-bold">358.00 SF</span></div>
               <div class="py-1 flex justify-between"><span class="text-[#94a3b8]">Stud Count (16" OC)</span><span id="prop-studs-ea" class="text-white font-bold">16 EA (160 LF)</span></div>
               <div class="py-1 flex justify-between"><span class="text-[#94a3b8]">Runner Track</span><span id="prop-track-lf" class="text-white font-bold">37.00 LF</span></div>
-              <div class="py-1 flex justify-between"><span class="text-[#94a3b8]">Wall Thickness</span><span id="prop-thickness" class="text-emerald-400 font-bold">—</span></div>
-              <div class="py-1 flex justify-between"><span class="text-[#94a3b8]">Height Verification</span><span id="prop-height-verification" class="text-emerald-400 font-bold">—</span></div>
+              <div class="py-1 flex justify-between items-center"><span class="text-[#94a3b8]">Wall Thickness</span><span id="prop-thickness" class="text-emerald-400 font-bold">—</span></div>
+              <div class="py-1 flex justify-between items-center"><span class="text-[#94a3b8]">Height Verification</span><span id="prop-height-verification" class="text-emerald-400 font-bold">—</span></div>
+              <div class="py-1 flex justify-between items-center"><span class="text-[#94a3b8]">Section Callout</span><span id="prop-section-callout" class="text-white font-mono">—</span></div>
+              <div class="py-1 flex justify-between items-center"><span class="text-[#94a3b8]">Height Source</span><span id="prop-height-source" class="text-[#cbd5e1] font-mono text-right truncate max-w-[170px]">—</span></div>
             </div>
           </div>
 
@@ -502,7 +538,7 @@
   <!-- =========================================================================
        3. BOTTOM TRADE TAKEOFF SCHEDULE DOCK
        ========================================================================= -->
-  <div class="bg-[#0d1524] border-t border-[#1f2937] flex flex-col z-40 shrink-0">
+  <div id="takeoffDock" class="bg-[#0d1524] border-t border-[#1f2937] flex flex-col z-40 shrink-0">
     <!-- Dock Header -->
     <div onclick="toggleScheduleDock()" class="px-4 py-2 bg-[#131e33] flex items-center justify-between cursor-pointer hover:bg-[#1c2b48] transition-colors">
       <div class="flex items-center gap-3">
@@ -517,21 +553,42 @@
           <span class="px-2 py-0.5 bg-[#070b13] text-[#94a3b8] text-xs font-mono border border-[#1f2937]">Studs: <span id="sched-summary-studs" class="text-white font-bold">16 EA</span></span>
         </div>
       </div>
-      <div id="sched-toggle-btn" class="flex items-center gap-1 text-xs text-primary font-mono font-semibold">
-        <span class="material-symbols-outlined text-[16px]">expand_less</span> Expand
+      <!-- Right Side: Filter Controls & Dock Toggle -->
+      <div class="flex items-center gap-2.5">
+        <!-- Segmented Filter Control -->
+        <div class="flex items-center border border-[#1f2937] bg-[#070b13] p-0.5 font-mono text-xs" onclick="event.stopPropagation()">
+          <button id="sched-filter-all" onclick="setScheduleFilter('all')" class="px-2 py-0.5 text-xs font-mono font-bold transition-colors bg-primary/20 text-primary border border-primary/30" title="Show all drywall partition runs">
+            All (<span id="sched-count-all">0</span>)
+          </button>
+          <button id="sched-filter-verified" onclick="setScheduleFilter('verified')" class="px-2 py-0.5 text-xs font-mono transition-colors text-[#94a3b8] hover:text-emerald-400" title="Filter to verified runs">
+            Verified (<span id="sched-count-verified" class="text-emerald-400">0</span>)
+          </button>
+          <button id="sched-filter-review" onclick="setScheduleFilter('review')" class="px-2 py-0.5 text-xs font-mono transition-colors text-[#94a3b8] hover:text-amber-400 flex items-center gap-1" title="Filter to review required / unverified fallback runs">
+            <span class="material-symbols-outlined text-[13px] text-amber-400">warning</span>
+            Review (<span id="sched-count-review" class="text-amber-400 font-bold">0</span>)
+          </button>
+        </div>
+
+        <!-- Toggle Collapse/Expand Button -->
+        <div id="sched-toggle-btn" class="flex items-center gap-1 text-xs text-primary font-mono font-semibold">
+          <span class="material-symbols-outlined text-[16px]">expand_less</span> Expand
+        </div>
       </div>
     </div>
 
     <!-- Expandable Schedule Drawer Container -->
     <div id="sched-drawer" class="h-10 schedule-transition overflow-hidden bg-[#070b13] flex flex-col">
       <div class="overflow-auto flex-1">
-        <table class="w-full text-left border-collapse font-mono text-xs">
-          <thead class="sticky top-0 bg-[#0b121e] text-[#94a3b8] text-[11px] border-b border-[#1f2937]">
+        <table id="scheduleTable" class="w-full text-left border-collapse font-mono text-xs">
+          <thead id="schedule-table-head" class="sticky top-0 bg-[#0b121e] text-[#94a3b8] text-[11px] border-b border-[#1f2937]">
             <tr>
               <th class="py-2 px-3">Run ID</th>
               <th class="py-2 px-3">Tag</th>
               <th class="py-2 px-3">Type</th>
               <th class="py-2 px-3">Description</th>
+              <th class="py-2 px-3 text-right">Thickness</th>
+              <th class="py-2 px-3 text-right">Height</th>
+              <th class="py-2 px-3">Height Source</th>
               <th class="py-2 px-3 text-right">Gross LF</th>
               <th class="py-2 px-3 text-right">Deduction</th>
               <th class="py-2 px-3 text-right">Net LF</th>
