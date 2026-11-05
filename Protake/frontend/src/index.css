@@ -1,0 +1,312 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  --color-bg: #0f0f0f;
+  --color-panel: #161616;
+  --color-panel-2: #1c1c1c;
+  --color-primary: #2563eb;
+  --color-primary-hover: #3b82f6;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #94a3b8;
+  --color-border: #262626;
+
+  --animate-scan: scan 2.4s linear infinite;
+  --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+  --animate-fade-in: fade-in 0.2s ease-out;
+
+  @keyframes scan {
+    0% {
+      transform: translateY(0%);
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(2000%);
+      opacity: 0;
+    }
+  }
+  @keyframes pulse-glow {
+    0%,
+    100% {
+      opacity: 0.55;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(2px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+::selection {
+  background-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #263041;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: #324158;
+}
+
+.font-mono-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Blueprint grid background */
+.blueprint-grid {
+  background-color: var(--color-bg);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--color-primary) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--color-primary) 12%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 12%, transparent) 1px, transparent 1px);
+  background-size:
+    16px 16px,
+    16px 16px,
+    80px 80px,
+    80px 80px;
+  background-position: center;
+}
+
+.glass-panel {
+  background: color-mix(in srgb, var(--color-panel) 82%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--color-border);
+}
+
+.glow-primary {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 40%, transparent), 0 8px 24px -8px color-mix(in srgb, var(--color-primary) 55%, transparent);
+}
+
+kbd.key {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  background: #0f1216;
+  color: var(--color-text-secondary);
+}
+
+/* Custom Cursors (Hardware Accelerated, No Lag) */
+html, body, #root {
+  cursor: url('/cursor-default.svg') 4 2, auto;
+}
+
+/* Interactive elements get the custom pointer hand */
+a, button, [role="button"], .cursor-pointer, select, input[type="submit"], input[type="button"], button *, a * {
+  cursor: url('/cursor-pointer.svg') 9 4, pointer !important;
+}
+
+[style*="cursor: crosshair"], [style*="cursor:crosshair"], .cursor-crosshair {
+  cursor: url('/cursor-crosshair.svg') 16 16, crosshair !important;
+}
+
+.blueprint-dashed {
+  background-image: radial-gradient(circle, rgba(148, 163, 184, 0.15) 0.8px, transparent 0.8px);
+  background-size: 20px 20px;
+}
+
+.progress-ruler {
+  background-image: repeating-linear-gradient(90deg, var(--color-border), var(--color-border) 1px, transparent 1px, transparent 8px);
+  background-position: bottom;
+  background-size: 100% 4px;
+}
+
+.glass-card {
+  background: color-mix(in srgb, var(--color-panel-2) 80%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--color-border);
+}
+
+.scrollbar-custom::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.scrollbar-custom::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 4px;
+}
+.scrollbar-custom::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+}
+.scrollbar-custom::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Hide offscreen print container in screen view */
+#print-all-sheets-container {
+  display: none;
+}
+
+@media print {
+  :root {
+    --color-bg: #ffffff !important;
+    --color-panel: #ffffff !important;
+    --color-panel-2: #f8fafc !important;
+    --color-primary: #1e40af !important;
+    --color-primary-hover: #1d4ed8 !important;
+    --color-text-primary: #0f172a !important;
+    --color-text-secondary: #475569 !important;
+    --color-border: #cbd5e1 !important;
+  }
+
+  /* Reset document context for print layout */
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* --- 1. REPORT PRINTING MODE --- */
+  body.print-report-mode #root {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body.print-report-mode #root > div {
+    height: auto !important;
+    width: auto !important;
+    overflow: visible !important;
+    display: block !important;
+    position: static !important;
+  }
+
+  body.print-report-mode #root > div > *:not(#report-modal-wrapper) {
+    display: none !important;
+  }
+
+  body.print-report-mode #report-modal-wrapper {
+    position: static !important;
+    display: block !important;
+    padding: 0 !important;
+    background: transparent !important;
+    z-index: auto !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  body.print-report-mode #report-modal-backdrop,
+  body.print-report-mode #report-modal-close,
+  body.print-report-mode #report-modal-footer {
+    display: none !important;
+  }
+
+  body.print-report-mode #report-printable {
+    max-width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  body.print-report-mode .text-white {
+    color: #0f172a !important;
+  }
+
+  body.print-report-mode .report-item-title {
+    color: #0f172a !important;
+  }
+
+  body.print-report-mode div.bg-\[var\(--color-panel-2\)\] {
+    background-color: #f8fafc !important;
+  }
+
+  body.print-report-mode .border-\[var\(--color-border\)\] {
+    border-color: #e2e8f0 !important;
+  }
+
+  body.print-report-mode .report-badge {
+    background-color: #f0fdf4 !important;
+    border-color: #bbf7d0 !important;
+    color: #166534 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* --- 2. DRAWINGS/DETECTIONS PRINTING MODE --- */
+  body.print-drawings-mode #root {
+    display: none !important;
+  }
+
+  body.print-drawings-mode #print-all-sheets-container {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    background: #ffffff !important;
+  }
+
+  body.print-drawings-mode .printable-page-break {
+    page-break-after: always !important;
+    break-after: page !important;
+    display: block !important;
+    position: relative !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+  }
+
+  body.print-drawings-mode .printable-page-break canvas {
+    max-width: 100% !important;
+    height: auto !important;
+    display: block !important;
+    margin: 0 auto !important;
+  }
+}
+

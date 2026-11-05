@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="polyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6" />
+      <stop offset="50%" stop-color="#8B5CF6" />
+      <stop offset="100%" stop-color="#EC4899" />
+    </linearGradient>
+  </defs>
+  <!-- Stem -->
+  <rect x="110" y="70" width="60" height="372" rx="30" fill="url(#polyGrad)" />
+  
+  <!-- Ribbon Loop of the P -->
+  <path d="M140 70 C280 70, 390 130, 390 230 C390 330, 280 390, 140 390" stroke="url(#polyGrad)" stroke-width="60" stroke-linecap="round" fill="none" />
+  
+  <!-- A glowing digital takeoff node/crosshair at the tip of the P -->
+  <circle cx="390" cy="230" r="28" fill="#ffffff" stroke="#8B5CF6" stroke-width="8" />
+  
+  <!-- Precision grid dots in background -->
+  <circle cx="256" cy="150" r="6" fill="#f8fafc" opacity="0.3" />
+  <circle cx="256" cy="310" r="6" fill="#f8fafc" opacity="0.3" />
+  <circle cx="330" cy="310" r="6" fill="#f8fafc" opacity="0.3" />
+  <circle cx="330" cy="150" r="6" fill="#f8fafc" opacity="0.3" />
+</svg>

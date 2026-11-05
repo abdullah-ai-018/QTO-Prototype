@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="1" stdDeviation="0.8" flood-color="#000000" flood-opacity="0.4" />
+    </filter>
+  </defs>
+  <!-- Custom modern index finger pointing hand -->
+  <path d="M8 5.5 C8 4.67 8.67 4 9.5 4 C10.33 4 11 4.67 11 5.5 V11 L11.5 11 C12.33 11 13 11.67 13 12.5 V13.5 L12 13.5 V15.5 M8 5.5 V12.2 L6.2 11.9 C5.5 11.7 4.8 12.0 4.4 12.6 L3 14 L8.6 20.2 C9.1 20.7 9.8 21 10.6 21 H16.5 C17.3 21 18 20.3 18 19.5 V11 C18 10.17 17.33 9.5 16.5 9.5 C16.2 9.5 15.9 9.6 15.7 9.7 C15.4 9.3 14.9 9 14.3 9 C14.0 9 13.7 9.1 13.5 9.2 C13.2 8.8 12.7 8.5 12.1 8.5 C11.8 8.5 11.5 8.6 11.3 8.7 M8 5.5" fill="#111318" stroke="#3B82F6" stroke-width="1.5" stroke-linejoin="round" filter="url(#shadow)" />
+</svg>

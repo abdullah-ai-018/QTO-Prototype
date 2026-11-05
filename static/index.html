@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>PDF ENGINE - Professional Blueprint Takeoff Workbench</title>
+  
+  <link rel="stylesheet" href="/static/css/workbench.css"/>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#4cd7f6",
+            "primary-container": "#06b6d4",
+            "surface": "#070b13",
+            "surface-dim": "#080d17",
+            "surface-container-lowest": "#05080f",
+            "surface-container-low": "#0b121e",
+            "surface-container": "#0d1524",
+            "surface-container-high": "#131e33",
+            "surface-container-highest": "#1c2b48",
+            "outline": "#869397",
+            "outline-variant": "#1f2937",
+            "on-surface": "#dde2f8",
+            "on-surface-variant": "#94a3b8"
+          },
+          fontFamily: {
+            sans: ["Inter", "sans-serif"],
+            mono: ["JetBrains Mono", "monospace"]
+          }
+        }
+      }
+    };
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+</head>
+<body class="bg-[#070b13] text-[#dde2f8] font-sans select-none overflow-hidden h-screen w-screen flex flex-col">
+
+  <!-- =========================================================================
+       1. TOP APPLICATION BAR (CAD HEADER)
+       ========================================================================= -->
+  <header class="h-12 bg-[#0c121e]/95 backdrop-blur border-b border-[#1f2937] z-50 flex items-center justify-between px-3 shrink-0 gap-2 whitespace-nowrap overflow-hidden">
+    <!-- Left Section: Branding, File, Sheets Drawer Toggle, Sheet Selector -->
+    <div class="flex items-center gap-2 shrink-0">
+      <div class="flex items-center gap-1.5 mr-0.5">
+        <div class="w-7 h-7 bg-primary/10 border border-primary/30 flex items-center justify-center text-primary shadow-[0_0_10px_rgba(76,215,246,0.25)]">
+          <span class="material-symbols-outlined text-[18px]">architecture</span>
+        </div>
+        <span class="font-mono font-bold text-sm tracking-wider text-white hidden sm:inline">PDF ENGINE</span>
+      </div>
+
+      <!-- Current File (clickable to upload) -->
+      <button onclick="openUploadModal()" class="px-2 py-1 bg-[#131e33] hover:bg-[#1c2b48] text-[#94a3b8] hover:text-white border border-[#1f2937] text-xs font-mono flex items-center gap-1 shrink-0" title="Upload or Switch Blueprint">
+        <span class="material-symbols-outlined text-[14px] text-primary">upload_file</span>
+        <span id="active-file-label" class="truncate max-w-[120px]">fixture_door.pdf</span>
+      </button>
+
+      <!-- Sheet Navigator Drawer Toggle -->
+      <button onclick="toggleLeftDrawer()" class="px-2 py-1 bg-[#131e33] hover:bg-[#1c2b48] text-white border border-[#1f2937] text-xs font-mono flex items-center gap-1 shrink-0" title="Toggle Sheet Navigator Drawer">
+        <span class="material-symbols-outlined text-[15px] text-primary">layers</span>
+        <span class="hidden md:inline">Sheets</span>
+      </button>
+
+      <!-- Quick Sheet Stepper & Combobox -->
+      <div class="flex items-center bg-[#070b13] border border-[#1f2937] px-1.5 py-0.5 gap-1 text-xs shrink-0">
+        <button onclick="prevPage()" class="hover:text-primary transition-colors flex items-center p-0.5" title="Previous Sheet">
+          <span class="material-symbols-outlined text-[14px]">chevron_left</span>
+        </button>
+        <select id="header-sheet-select" onchange="onHeaderSheetChange(this.value)" class="bg-[#0b1324] text-white font-mono text-[11px] px-1 py-0.5 border border-[#1f2937] focus:outline-none focus:border-primary cursor-pointer min-w-[140px] max-w-[260px] truncate" title="Select Sheet to View">
+          <option value="1">P.1: A-102 Floor Plan</option>
+        </select>
+        <button onclick="nextPage()" class="hover:text-primary transition-colors flex items-center p-0.5" title="Next Sheet">
+          <span class="material-symbols-outlined text-[14px]">chevron_right</span>
+        </button>
+        <span id="page-nav-label" class="hidden">Page 1 of 1: A-102</span>
+        <span id="sheet-type-badge" class="bg-[#002a78]/50 text-primary border border-primary/30 px-1 py-0.2 text-[9px] font-mono font-semibold tracking-wide hidden lg:inline">PLAN</span>
+      </div>
+    </div>
+
+    <!-- Center View-Mode Toggle -->
+    <div class="hidden md:flex items-center bg-[#070b13] border border-[#1f2937] p-0.5 text-xs font-mono shrink-0">
+      <button id="mode-btn-raw" onclick="setViewMode('raw')" class="px-2.5 py-0.5 text-[#94a3b8] hover:text-white transition-all text-[11px]">Raw</button>
+      <button id="mode-btn-clean" onclick="setViewMode('clean')" class="px-2.5 py-0.5 text-[#94a3b8] hover:text-white transition-all text-[11px]">Clean</button>
+      <button id="mode-btn-overlay" onclick="setViewMode('overlay')" class="px-2.5 py-0.5 bg-gradient-to-r from-primary to-[#06b6d4] text-[#002a78] font-bold shadow-[0_0_10px_rgba(76,215,246,0.3)] flex items-center gap-1 transition-all text-[11px]">
+        <span class="w-1.5 h-1.5 rounded-full bg-[#002a78] animate-pulse"></span>
+        Overlay
+      </button>
+    </div>
+
+    <!-- Right Controls: Scale, Review Status, Exports Dropdown, Takeoff Trigger, Inspector Toggle -->
+    <div class="flex items-center gap-2 shrink-0">
+      <!-- Scale Badge -->
+      <div id="scale-badge" class="flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-950/40 px-2 py-0.5 border border-emerald-500/30 font-mono shrink-0" title="Blueprint Scale">
+        <span class="material-symbols-outlined text-[13px]">straighten</span>
+        <span id="scale-badge-text">1/8" = 1'-0"</span>
+      </div>
+
+      <!-- Review / Status Badge (hidden on narrow screens) -->
+      <div id="review-badge" class="hidden xl:flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-950/40 px-2 py-0.5 border border-emerald-500/30 font-mono shrink-0">
+        <span class="material-symbols-outlined text-[13px]">verified</span>
+        <span>Verified</span>
+      </div>
+
+      <!-- Grouped Export Dropdown -->
+      <div class="relative group shrink-0">
+        <button class="px-2 py-1 bg-[#131e33] hover:bg-[#1c2b48] text-white border border-[#1f2937] text-xs font-mono flex items-center gap-1" title="Export Artifacts">
+          <span class="material-symbols-outlined text-[15px] text-[#4cd7f6]">download</span>
+          <span class="hidden sm:inline">Export</span>
+          <span class="material-symbols-outlined text-[12px] text-[#94a3b8]">expand_more</span>
+        </button>
+        <div class="dropdown-menu absolute right-0 top-full mt-1 w-44 bg-[#0d1524] border border-[#1f2937] shadow-xl py-1 hidden group-hover:block z-50 font-mono text-xs">
+          <button onclick="downloadAnnotatedPDF()" class="w-full text-left px-3 py-1.5 hover:bg-[#131e33] text-[#4cd7f6] flex items-center gap-2">
+            <span class="material-symbols-outlined text-[15px]">picture_as_pdf</span>
+            Annotated PDF
+          </button>
+          <button onclick="downloadTakeoffExcel()" class="w-full text-left px-3 py-1.5 hover:bg-[#131e33] text-emerald-400 flex items-center gap-2">
+            <span class="material-symbols-outlined text-[15px]">table_view</span>
+            Excel Workbook
+          </button>
+        </div>
+      </div>
+
+      <!-- Takeoff Schedule Dock Trigger -->
+      <button onclick="toggleScheduleDock(true)" class="px-2.5 py-1 bg-[#4cd7f6] hover:bg-[#acedff] text-[#003640] font-mono font-semibold text-xs flex items-center gap-1 shadow-[0_0_10px_rgba(76,215,246,0.25)] shrink-0" title="Open Takeoff Schedule">
+        <span class="material-symbols-outlined text-[15px]">calculate</span>
+        <span class="hidden sm:inline">Takeoff</span>
+      </button>
+
+      <!-- Inspector Toggle Button -->
+      <button onclick="toggleRightDrawer()" class="p-1 text-[#94a3b8] hover:text-white border border-[#1f2937] bg-[#131e33] shrink-0" title="Toggle Wall Inspector">
+        <span class="material-symbols-outlined text-[18px]">info</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       2. WORKBENCH BODY: LEFT DUAL-TIER + CANVAS + RIGHT DUAL-TIER
+       ========================================================================= -->
+  <div class="flex-1 flex overflow-hidden relative">
+
+    <!-- Left Collapsible Slide-Out Drawer (300px) — Sheet Navigator -->
+    <aside id="left-drawer" class="w-[300px] bg-[#0d1524] border-r border-[#1f2937] flex flex-col shrink-0 z-20 drawer-transition">
+      <!-- Drawer Header: Search & Filters -->
+      <div class="p-3 border-b border-[#1f2937]/80 flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <span class="font-mono text-xs font-semibold text-white tracking-wider flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[16px] text-primary">folder_open</span>
+            SHEET NAVIGATOR (<span id="sheet-count-label">0</span>)
+          </span>
+          <button onclick="toggleLeftDrawer(false)" class="text-[#64748b] hover:text-white transition-colors p-1 hover:bg-[#131e33]" title="Collapse Sheet Navigator">
+            <span class="material-symbols-outlined text-[16px]">dock_to_left</span>
+          </button>
+        </div>
+
+        <!-- Search Input -->
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-2 top-2 text-[14px] text-[#64748b]">search</span>
+          <input id="sheet-search-input" oninput="filterSheets(this.value)" class="w-full bg-[#070b13] border border-[#1f2937] text-xs font-mono pl-7 pr-2 py-1 text-white placeholder-[#475569] focus:outline-none focus:border-primary" placeholder="Search sheet number or title..." type="text"/>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="flex items-center justify-between text-xs font-mono">
+          <label class="flex items-center gap-1.5 text-[#cbd5e1] cursor-pointer text-[11px]">
+            <input id="filter-floorplans-only" type="checkbox" onchange="toggleFloorPlansFilter(this.checked)" class="accent-primary w-3.5 h-3.5" checked/>
+            <span>Floor Plans Only</span>
+          </label>
+          <div class="flex items-center gap-2">
+            <button onclick="selectAllVisibleSheets()" class="text-[10px] text-primary hover:underline font-mono">Select All</button>
+            <span class="text-[#334155] text-[10px]">|</span>
+            <button onclick="deselectAllSheets()" class="text-[10px] text-[#94a3b8] hover:underline font-mono">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sheet Catalog List Container (Scrollable) -->
+      <div id="sheet-catalog-list" class="flex-1 overflow-y-auto divide-y divide-[#1f2937]/40 text-xs font-mono">
+        <!-- Dynamically populated rows -->
+      </div>
+
+      <!-- Selective Processing Action Footer -->
+      <div class="p-3 border-t border-[#1f2937] bg-[#0b121e] flex flex-col gap-2">
+        <div class="flex items-center justify-between text-[11px] font-mono text-[#94a3b8]">
+          <span>Selected: <strong id="selected-sheets-count" class="text-white font-bold">0</strong> sheets</span>
+        </div>
+        <button id="process-selected-btn" onclick="submitSelectiveSheetProcessing()" class="w-full py-1.5 bg-primary hover:bg-[#acedff] text-[#003640] font-mono font-bold text-xs flex items-center justify-center gap-1.5 shadow-[0_0_10px_rgba(76,215,246,0.25)] transition-colors">
+          <span class="material-symbols-outlined text-[15px]">play_arrow</span>
+          Process Selected Sheets
+        </button>
+      </div>
+    </aside>
+
+    <!-- Central Viewport & Blueprint Canvas -->
+    <main class="flex-1 flex flex-col relative bg-[#070b13] overflow-hidden">
+      <!-- Streamlined Run / Status Notification Banner -->
+      <div id="warning-banner" class="bg-primary/5 border-b border-primary/20 px-3 py-1 flex items-center justify-between text-[11px] text-primary font-mono shrink-0">
+        <div class="flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[14px]">verified</span>
+          <span>TAKEOFF ACTIVE: Worked Example 8.7.1 Parity | 0% Base Waste</span>
+        </div>
+        <button onclick="toggleScheduleDock(true)" class="underline hover:text-white transition-colors">Schedule Dock</button>
+      </div>
+
+      <!-- Canvas Viewport -->
+      <div id="canvas-viewport" class="flex-1 cad-grid-pattern relative cad-crosshair">
+        <!-- Transform Layer (Image + SVG Vector Overlay) -->
+        <div id="canvas-transform-layer">
+          <img id="sheet-image" src="" alt="Blueprint Page"/>
+          <svg id="svg-overlay" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+
+        <!-- HUD: Bottom-Left Scale & Coordinates -->
+        <div class="absolute bottom-6 left-6 bg-[#0c121e]/90 backdrop-blur border border-[#1f2937] px-3 py-1.5 text-xs font-mono text-[#dde2f8] shadow-2xl flex items-center gap-3 pointer-events-none">
+          <span id="hud-sheet-label">SHEET #01</span>
+          <span class="text-[#475569]">|</span>
+          <span id="hud-coords">Scale: 100% | X: 0, Y: 0</span>
+        </div>
+
+        <!-- Floating Micro-Toolbar -->
+        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 bg-[#0d1524]/95 backdrop-blur border border-[#1f2937] px-3 py-1.5 flex items-center gap-2 shadow-2xl z-20 font-mono text-xs">
+          <!-- Select Tool -->
+          <button id="tool-btn-select" onclick="canvasSetTool('select')" class="tool-btn p-1.5 text-primary bg-primary/20 hover:text-primary transition-colors" title="Select Tool (V)">
+            <span class="material-symbols-outlined text-[18px]">near_me</span>
+          </button>
+          <!-- Pan Tool -->
+          <button id="tool-btn-pan" onclick="canvasSetTool('pan')" class="tool-btn p-1.5 text-[#94a3b8] hover:text-primary transition-colors" title="Pan Tool (H)">
+            <span class="material-symbols-outlined text-[18px]">pan_tool</span>
+          </button>
+          
+          <div class="h-4 w-[1px] bg-[#1f2937]"></div>
+
+          <!-- 2-Point Scale Calibration Tool -->
+          <button id="tool-btn-calibrate" onclick="canvasSetTool('calibrate')" class="tool-btn p-1.5 text-[#94a3b8] hover:text-primary transition-colors" title="2-Point Scale Calibration (C)">
+            <span class="material-symbols-outlined text-[18px]">straighten</span>
+          </button>
+
+          <!-- Manual Wall Ruler Tool -->
+          <button id="tool-btn-wall" onclick="canvasSetTool('wall')" class="tool-btn p-1.5 text-[#94a3b8] hover:text-primary transition-colors" title="Manual Wall Drawing / Ruler (W)">
+            <span class="material-symbols-outlined text-[18px]">architecture</span>
+          </button>
+
+          <!-- Active Partition Tag & Wall Height Controls -->
+          <div class="hidden sm:flex items-center gap-1.5 bg-[#070b13] border border-[#1f2937] px-2 py-0.5">
+            <span class="text-[10px] text-[#64748b]">Tag:</span>
+            <select id="active-partition-tag" class="bg-transparent text-primary text-[11px] font-mono font-bold focus:outline-none cursor-pointer" title="Active Partition Tag">
+              <option value="1A">1A</option>
+              <option value="1B">1B</option>
+              <option value="1C">1C</option>
+              <option value="1D">1D</option>
+              <option value="1E">1E</option>
+              <option value="2B">2B</option>
+              <option value="2C">2C</option>
+              <option value="2W">2W</option>
+              <option value="2X">2X</option>
+              <option value="3A">3A</option>
+              <option value="3D">3D</option>
+              <option value="4B1">4B1</option>
+              <option value="4K">4K</option>
+              <option value="4P">4P</option>
+              <option value="5B">5B</option>
+              <option value="5D">5D</option>
+              <option value="5E" selected>5E</option>
+              <option value="5L">5L</option>
+              <option value="7A">7A</option>
+              <option value="7B">7B</option>
+              <option value="7C">7C</option>
+              <option value="7E">7E</option>
+              <option value="7F">7F</option>
+              <option value="7G">7G</option>
+              <option value="8A">8A</option>
+              <option value="8P">8P</option>
+              <option value="GL1">GL1</option>
+              <option value="GL2">GL2</option>
+              <option value="PW">PW</option>
+            </select>
+            <span class="text-[#334155]">|</span>
+            <span class="text-[10px] text-[#64748b]">H:</span>
+            <input id="active-wall-height" type="number" step="0.5" min="1" value="10.0" class="w-10 bg-transparent text-white text-[11px] font-mono text-right focus:outline-none" title="Active Wall Height (ft)"/>
+            <span class="text-[10px] text-[#64748b]">ft</span>
+          </div>
+
+          <div class="h-4 w-[1px] bg-[#1f2937]"></div>
+
+          <button onclick="canvasZoomOut()" class="p-1.5 text-[#94a3b8] hover:text-white transition-colors" title="Zoom Out (-)">
+            <span class="material-symbols-outlined text-[18px]">remove</span>
+          </button>
+          <span id="zoom-level-label" class="font-mono text-xs text-[#cbd5e1] min-w-[45px] text-center">100%</span>
+          <button onclick="canvasZoomIn()" class="p-1.5 text-[#94a3b8] hover:text-white transition-colors" title="Zoom In (+)">
+            <span class="material-symbols-outlined text-[18px]">add</span>
+          </button>
+
+          <div class="h-4 w-[1px] bg-[#1f2937]"></div>
+
+          <button onclick="canvasFit()" class="px-2 py-1 bg-[#131e33] hover:bg-[#1c2b48] text-xs font-mono text-[#dde2f8] transition-colors" title="Fit to Screen">
+            Fit
+          </button>
+          <button onclick="canvasReset()" class="px-2 py-1 bg-[#131e33] hover:bg-[#1c2b48] text-xs font-mono text-[#dde2f8] transition-colors" title="Reset View">
+            Reset
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right Collapsible Slide-Out Drawer (340px) — "INSPECTOR & PROVENANCE" -->
+    <aside id="right-drawer" class="w-[340px] bg-[#0d1524] border-l border-[#1f2937] flex flex-col shrink-0 z-20 drawer-transition">
+      <!-- Drawer Header -->
+      <div class="p-3 border-b border-[#1f2937]/80">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[16px] text-primary">info</span>
+            <span class="font-mono text-xs font-semibold text-white tracking-wider">INSPECTOR</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <span id="inspector-audit-badge" class="bg-emerald-950/40 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-mono">VERIFIED</span>
+            <button onclick="toggleRightDrawer(false)" class="text-[#64748b] hover:text-white transition-colors p-1 hover:bg-[#131e33]" title="Collapse Inspector">
+              <span class="material-symbols-outlined text-[16px]">dock_to_right</span>
+            </button>
+          </div>
+        </div>
+        <div class="flex items-center justify-between">
+          <span id="inspector-wall-tag" class="text-xs font-mono font-bold text-primary">RUN-001 · Tag 1A</span>
+          <span id="inspector-wall-sheet" class="text-[10px] font-mono text-[#94a3b8]">Page 1 · A-102</span>
+        </div>
+
+        <!-- Editable Partition Tag & Wall Height -->
+        <div class="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-[#1f2937]/60 text-xs font-mono">
+          <div>
+            <label class="block text-[10px] text-[#94a3b8] mb-0.5 uppercase tracking-wide">Partition Tag</label>
+            <select id="inspector-tag-select" onchange="onInspectorTagChange(this.value)" class="w-full bg-[#070b13] border border-[#1f2937] text-white px-2 py-1 text-xs font-mono font-bold focus:outline-none focus:border-primary">
+              <option value="1A">1A</option>
+              <option value="1B">1B</option>
+              <option value="1C">1C</option>
+              <option value="1D">1D</option>
+              <option value="1E">1E</option>
+              <option value="2B">2B</option>
+              <option value="2C">2C</option>
+              <option value="2W">2W</option>
+              <option value="2X">2X</option>
+              <option value="3A">3A</option>
+              <option value="3D">3D</option>
+              <option value="4B1">4B1</option>
+              <option value="4K">4K</option>
+              <option value="4P">4P</option>
+              <option value="5B">5B</option>
+              <option value="5D">5D</option>
+              <option value="5E">5E</option>
+              <option value="5L">5L</option>
+              <option value="7A">7A</option>
+              <option value="7B">7B</option>
+              <option value="7C">7C</option>
+              <option value="7E">7E</option>
+              <option value="7F">7F</option>
+              <option value="7G">7G</option>
+              <option value="8A">8A</option>
+              <option value="8P">8P</option>
+              <option value="GL1">GL1</option>
+              <option value="GL2">GL2</option>
+              <option value="PW">PW</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] text-[#94a3b8] mb-0.5 uppercase tracking-wide">Wall Height (ft)</label>
+            <div class="flex items-center gap-1">
+              <input id="inspector-height-input" type="number" step="0.5" min="1" value="10.0" onchange="onInspectorHeightChange(this.value)" class="w-full bg-[#070b13] border border-[#1f2937] text-white px-2 py-1 text-right text-xs font-mono font-bold focus:outline-none focus:border-primary"/>
+              <span class="text-[10px] text-[#64748b]">ft</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3-Tab Switcher -->
+      <div class="flex border-b border-[#1f2937] bg-[#080d17] text-xs font-mono">
+        <button id="tab-btn-properties" onclick="switchInspectorTab('properties')" class="flex-1 py-2 text-center text-primary border-b-2 border-primary bg-primary/5">Properties</button>
+        <button id="tab-btn-geometry" onclick="switchInspectorTab('geometry')" class="flex-1 py-2 text-center text-[#94a3b8] hover:text-white">Geometry</button>
+        <button id="tab-btn-audit" onclick="switchInspectorTab('audit')" class="flex-1 py-2 text-center text-[#94a3b8] hover:text-white">Audit Trail</button>
+      </div>
+
+      <!-- Tab Content Area -->
+      <div class="flex-1 overflow-y-auto p-3 space-y-4 text-xs font-mono">
+        <!-- TAB 1: PROPERTIES -->
+        <div id="tab-pane-properties" class="space-y-3">
+          <!-- Quantities Card -->
+          <div class="bg-[#080d17] border border-[#1f2937] p-3 space-y-2">
+            <div class="text-[11px] font-semibold text-white uppercase tracking-wider flex items-center justify-between">
+              <span>Drywall Quantities</span>
+              <span class="text-[10px] text-primary">0% Waste Base</span>
+            </div>
+            <div class="divide-y divide-[#1f2937]/50">
+              <div class="py-1 flex justify-between"><span class="text-[#94a3b8]">Entity Type</span><span id="prop-entity-type" class="text-white text-right">Interior Partition</span></div>
+              <div class="py-1 flex justify-between"><span class="text-[#94a3b8]">Gross Length</span><span id="prop-gross-lf" class="text-white font-bold">20.00 LF</span></div>
+              <div class="py-1 flex justify-between"><span class="text-[#94a3b8]">Openings Deduct</span><span id="prop-deduct-lf" class="text-amber-400 font-bold">-3.00 LF</span></div>
+              <div class="py-1 flex justify-between"><span class="text-[#94a3b8]">Net Wall Length</span><span id="prop-net-lf" class="text-primary font-bold">17.00 LF</span></div>
+              <div class="py-1 flex justify-between"><span class="text-[#94a3b8]">Net Board Area</span><span id="prop-board-sf" class="text-white font-bold">358.00 SF</span></div>
+              <div class="py-1 flex justify-between"><span class="text-[#94a3b8]">Stud Count (16" OC)</span><span id="prop-studs-ea" class="text-white font-bold">16 EA (160 LF)</span></div>
+              <div class="py-1 flex justify-between"><span class="text-[#94a3b8]">Runner Track</span><span id="prop-track-lf" class="text-white font-bold">37.00 LF</span></div>
+              <div class="py-1 flex justify-between"><span class="text-[#94a3b8]">Wall Thickness</span><span id="prop-thickness" class="text-emerald-400 font-bold">—</span></div>
+              <div class="py-1 flex justify-between"><span class="text-[#94a3b8]">Height Verification</span><span id="prop-height-verification" class="text-emerald-400 font-bold">—</span></div>
+            </div>
+          </div>
+
+          <!-- Opening Deductions Manager -->
+          <div class="bg-[#080d17] border border-[#1f2937] p-3 space-y-2">
+            <div class="text-[11px] font-semibold text-white uppercase tracking-wider flex items-center justify-between">
+              <span>Opening Deductions</span>
+              <div class="flex items-center gap-1">
+                <button id="btn-add-door" onclick="addOpeningDeduction('door', 3.0, 7.0)" class="px-2 py-0.5 bg-[#131e33] hover:bg-[#1c2b48] text-amber-400 border border-amber-500/30 text-[10px] font-mono flex items-center gap-1" title="Add 3ft Door Opening">
+                  <span class="material-symbols-outlined text-[13px]">meeting_room</span>
+                  + Add Door (3ft)
+                </button>
+                <button id="btn-add-window" onclick="addOpeningDeduction('window', 4.0, 4.0)" class="px-2 py-0.5 bg-[#131e33] hover:bg-[#1c2b48] text-amber-400 border border-amber-500/30 text-[10px] font-mono flex items-center gap-1" title="Add 4ft Window Opening">
+                  <span class="material-symbols-outlined text-[13px]">window</span>
+                  + Add Window (4ft)
+                </button>
+              </div>
+            </div>
+            <div id="inspector-openings-list" class="space-y-1">
+              <!-- Dynamically populated opening items with delete buttons -->
+            </div>
+          </div>
+
+          <!-- Consumables Card -->
+          <div class="bg-[#080d17] border border-[#1f2937] p-3 space-y-2">
+            <div class="text-[11px] font-semibold text-white uppercase tracking-wider">Consumables Estimate</div>
+            <div class="divide-y divide-[#1f2937]/50 text-[11px]">
+              <div class="py-1 flex justify-between"><span class="text-[#94a3b8]">Fasteners</span><span id="prop-fasteners" class="text-white">358 EA</span></div>
+              <div class="py-1 flex justify-between"><span class="text-[#94a3b8]">Joint Tape</span><span id="prop-tape" class="text-white">136.0 LF</span></div>
+              <div class="py-1 flex justify-between"><span class="text-[#94a3b8]">Joint Compound</span><span id="prop-mud" class="text-white">3.40 Gal</span></div>
+            </div>
+          </div>
+
+          <!-- Material Description Card -->
+          <div class="bg-[#080d17] border border-[#1f2937] p-3 space-y-1.5">
+            <div class="text-[11px] font-semibold text-white uppercase tracking-wider">Assembly Specification</div>
+            <div id="prop-materials-desc" class="text-[11px] text-[#cbd5e1] font-sans leading-relaxed">
+              5/8" TYPE X GWB EACH SIDE ON 3-5/8" METAL STUDS @ 16" O.C. W/ R-11 BATT
+            </div>
+            <div class="text-[10px] text-primary pt-1">Trade: Div 09 — Finishes (09 29 00 Gypsum Board)</div>
+          </div>
+
+          <!-- Structured Material Layers Card -->
+          <div class="bg-[#080d17] border border-[#1f2937] p-3 space-y-1.5">
+            <div class="text-[11px] font-semibold text-white uppercase tracking-wider flex items-center justify-between">
+              <span>Layer Stack Breakdown</span>
+              <span id="prop-layers-count" class="text-[10px] text-primary">0 Layers</span>
+            </div>
+            <div id="prop-material-layers-list" class="space-y-1 divide-y divide-[#1f2937]/40 text-[11px]">
+              <div class="text-[11px] text-[#64748b] font-mono py-1">Select a wall to view layer breakdown.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: GEOMETRY -->
+        <div id="tab-pane-geometry" class="space-y-3 hidden">
+          <div class="bg-[#080d17] border border-[#1f2937] p-3 space-y-2">
+            <div class="text-[11px] font-semibold text-white uppercase tracking-wider">Spine Coordinates</div>
+            <div class="text-[11px] space-y-1">
+              <div class="flex justify-between"><span class="text-[#94a3b8]">Spine Line</span><span id="geom-spine-coords" class="text-white">X1: 200 -> X2: 380</span></div>
+              <div class="flex justify-between"><span class="text-[#94a3b8]">Wall Angle</span><span id="geom-angle" class="text-white">0.0°</span></div>
+              <div class="flex justify-between"><span class="text-[#94a3b8]">Scale Factor</span><span id="geom-ft-per-pt" class="text-white">0.111111 ft/pt</span></div>
+              <div class="flex justify-between"><span class="text-[#94a3b8]">Casing Separation</span><span id="geom-thickness-pt" class="text-white">—</span></div>
+              <div class="flex justify-between"><span class="text-[#94a3b8]">Deductions</span><span id="geom-openings-count" class="text-amber-400">1 Door Opening</span></div>
+            </div>
+          </div>
+
+          <div class="bg-[#080d17] border border-[#1f2937] p-3 space-y-2">
+            <div class="text-[11px] font-semibold text-white uppercase tracking-wider">Opening Gaps</div>
+            <div id="geom-openings-list" class="space-y-1">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: AUDIT TRAIL -->
+        <div id="tab-pane-audit" class="space-y-3 hidden">
+          <div class="bg-[#080d17] border border-[#1f2937] p-3 space-y-2">
+            <div class="text-[11px] font-semibold text-white uppercase tracking-wider">Provenance & Hash</div>
+            <div class="text-[11px] space-y-1">
+              <div class="flex justify-between"><span class="text-[#94a3b8]">Run ID</span><span id="audit-run-id" class="text-primary truncate max-w-[170px]">test_m3_door</span></div>
+              <div class="flex justify-between"><span class="text-[#94a3b8]">PDF SHA-256</span><span id="audit-pdf-hash" class="text-white truncate max-w-[170px]">854997fc...</span></div>
+              <div class="flex justify-between"><span class="text-[#94a3b8]">Sheet Label</span><span id="audit-source-sheet" class="text-white">A-102</span></div>
+              <div class="flex justify-between"><span class="text-[#94a3b8]">CAD Engine</span><span id="audit-engine" class="text-white">PyMuPDF Core v1.0</span></div>
+              <div class="flex justify-between"><span class="text-[#94a3b8]">SOP Parity</span><span class="text-emerald-400">Section 8.7.1 VERIFIED</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Delete Wall Action Footer -->
+      <div class="p-3 border-t border-[#1f2937] bg-[#0b121e]">
+        <button id="btn-delete-wall" onclick="deleteSelectedWall()" class="w-full py-1.5 bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-500/40 font-mono text-xs flex items-center justify-center gap-1.5 transition-colors" title="Delete Selected Wall Run">
+          <span class="material-symbols-outlined text-[15px]">delete</span>
+          Delete Wall Run
+        </button>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- =========================================================================
+       3. BOTTOM TRADE TAKEOFF SCHEDULE DOCK
+       ========================================================================= -->
+  <div class="bg-[#0d1524] border-t border-[#1f2937] flex flex-col z-40 shrink-0">
+    <!-- Dock Header -->
+    <div onclick="toggleScheduleDock()" class="px-4 py-2 bg-[#131e33] flex items-center justify-between cursor-pointer hover:bg-[#1c2b48] transition-colors">
+      <div class="flex items-center gap-3">
+        <span class="font-mono text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[16px] text-primary">table_chart</span>
+          Trade Takeoff Schedule
+        </span>
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-0.5 bg-primary text-[#003640] text-xs font-mono font-bold">Drywall (09250)</span>
+          <span class="px-2 py-0.5 bg-[#070b13] text-[#94a3b8] text-xs font-mono border border-[#1f2937]">Net LF: <span id="sched-summary-net-lf" class="text-primary font-bold">17.00 LF</span></span>
+          <span class="px-2 py-0.5 bg-[#070b13] text-[#94a3b8] text-xs font-mono border border-[#1f2937]">Board SF: <span id="sched-summary-board-sf" class="text-white font-bold">358.00 SF</span></span>
+          <span class="px-2 py-0.5 bg-[#070b13] text-[#94a3b8] text-xs font-mono border border-[#1f2937]">Studs: <span id="sched-summary-studs" class="text-white font-bold">16 EA</span></span>
+        </div>
+      </div>
+      <div id="sched-toggle-btn" class="flex items-center gap-1 text-xs text-primary font-mono font-semibold">
+        <span class="material-symbols-outlined text-[16px]">expand_less</span> Expand
+      </div>
+    </div>
+
+    <!-- Expandable Schedule Drawer Container -->
+    <div id="sched-drawer" class="h-10 schedule-transition overflow-hidden bg-[#070b13] flex flex-col">
+      <div class="overflow-auto flex-1">
+        <table class="w-full text-left border-collapse font-mono text-xs">
+          <thead class="sticky top-0 bg-[#0b121e] text-[#94a3b8] text-[11px] border-b border-[#1f2937]">
+            <tr>
+              <th class="py-2 px-3">Run ID</th>
+              <th class="py-2 px-3">Tag</th>
+              <th class="py-2 px-3">Type</th>
+              <th class="py-2 px-3">Description</th>
+              <th class="py-2 px-3 text-right">Gross LF</th>
+              <th class="py-2 px-3 text-right">Deduction</th>
+              <th class="py-2 px-3 text-right">Net LF</th>
+              <th class="py-2 px-3 text-right">Board SF</th>
+              <th class="py-2 px-3 text-right">Studs (ea)</th>
+              <th class="py-2 px-3 text-right">Track (LF)</th>
+              <th class="py-2 px-3">Source Sheet</th>
+              <th class="py-2 px-3 text-center">Status</th>
+              <th class="py-2 px-3 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="schedule-table-body" class="divide-y divide-[#1f2937]/40 text-[#dde2f8]">
+            <!-- Dynamic rows populated from state.walls -->
+          </tbody>
+          <tfoot class="sticky bottom-0 bg-[#0c121e] border-t-2 border-primary/40 font-bold">
+            <tr id="schedule-table-total">
+              <!-- Total summary row -->
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       4. 2-POINT SCALE CALIBRATION MODAL
+       ========================================================================= -->
+  <div id="modal-calibration" class="fixed inset-0 modal-backdrop z-50 hidden items-center justify-center p-4">
+    <div class="bg-[#0d1524] border border-[#1f2937] w-full max-w-sm shadow-2xl flex flex-col font-mono text-xs">
+      <div class="p-3 border-b border-[#1f2937] flex items-center justify-between bg-[#131e33]">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-[18px]">straighten</span>
+          <span class="text-sm font-bold text-white tracking-wider">CALIBRATE SCALE</span>
+        </div>
+        <button onclick="closeCalibrationModal()" class="text-[#94a3b8] hover:text-white">
+          <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      </div>
+      <div class="p-4 space-y-3">
+        <p class="text-[#94a3b8] leading-relaxed">
+          Enter the real-world distance that the 2 reference points you clicked represent:
+        </p>
+        <div>
+          <div class="text-[10px] text-[#64748b] mb-1">Measured Distance on Blueprint:</div>
+          <div id="calib-measured-pts" class="text-primary font-bold text-sm bg-[#070b13] p-2 border border-[#1f2937]">240.0 pt (240.0 px)</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="flex-1">
+            <label class="block text-[10px] text-[#94a3b8] mb-1 uppercase tracking-wide">Real-World Distance</label>
+            <input id="calib-distance-input" type="text" value="20.0" placeholder="e.g. 20.0 or 20'-0&quot;" class="w-full bg-[#070b13] border border-[#1f2937] px-3 py-1.5 text-white font-bold focus:outline-none focus:border-primary text-sm"/>
+          </div>
+          <div class="w-24">
+            <label class="block text-[10px] text-[#94a3b8] mb-1 uppercase tracking-wide">Unit</label>
+            <select id="calib-unit-select" class="w-full bg-[#070b13] border border-[#1f2937] px-2 py-1.5 text-white focus:outline-none focus:border-primary text-sm">
+              <option value="ft" selected>Feet (ft)</option>
+              <option value="in">Inches (in)</option>
+              <option value="m">Meters (m)</option>
+            </select>
+          </div>
+        </div>
+        <div class="text-[10px] text-[#64748b]">
+          Supports decimal (e.g. <span class="text-white">20.0</span>) or architectural notation (e.g. <span class="text-white">20'-0"</span>, <span class="text-white">12'-6"</span>).
+        </div>
+      </div>
+      <div class="p-3 border-t border-[#1f2937] bg-[#0b121e] flex justify-end gap-2">
+        <button onclick="closeCalibrationModal()" class="px-3 py-1.5 bg-[#131e33] hover:bg-[#1c2b48] text-white">Cancel</button>
+        <button onclick="confirmCalibration()" class="px-4 py-1.5 bg-primary text-[#003640] font-bold hover:bg-[#acedff] shadow-[0_0_8px_rgba(76,215,246,0.25)]">Apply Calibration</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       5. BLUEPRINT UPLOAD DROPZONE MODAL
+       ========================================================================= -->
+  <div id="upload-modal" class="fixed inset-0 modal-backdrop z-50 hidden items-center justify-center p-4">
+    <div class="bg-[#0d1524] border border-[#1f2937] w-full max-w-xl shadow-2xl flex flex-col">
+      <!-- Modal Header -->
+      <div class="p-4 border-b border-[#1f2937] flex items-center justify-between bg-[#131e33]">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-[20px]">upload_file</span>
+          <span class="font-mono text-sm font-bold text-white tracking-wider">INGEST BLUEPRINT PDF</span>
+        </div>
+        <button onclick="closeUploadModal()" class="text-[#94a3b8] hover:text-white">
+          <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 space-y-5">
+        <!-- Drag & Drop Zone -->
+        <div id="dropzone" class="border-2 border-dashed border-[#1f2937] p-6 text-center cursor-pointer hover:border-primary/60 transition-colors bg-[#080d17]" onclick="document.getElementById('file-input').click()">
+          <span class="material-symbols-outlined text-[42px] text-primary/70 mb-2">cloud_upload</span>
+          <div class="font-mono text-sm text-white font-semibold">Drag &amp; drop blueprint PDF here</div>
+          <div class="text-xs text-[#94a3b8] mt-1">Supports multi-page architectural floor plans & schedules (.pdf)</div>
+          <input type="file" id="file-input" class="hidden" accept=".pdf,application/pdf"/>
+          <div id="selected-file-name" class="mt-3 text-xs font-mono text-primary font-bold hidden bg-primary/10 py-1 px-2 border border-primary/30 inline-block"></div>
+        </div>
+
+        <!-- Configuration Parameters -->
+        <div class="grid grid-cols-3 gap-3 font-mono text-xs">
+          <div>
+            <label class="block text-[#94a3b8] mb-1">Wall Height (ft)</label>
+            <input id="param-height" type="number" step="0.5" value="10.0" class="w-full bg-[#070b13] border border-[#1f2937] px-2 py-1 text-white focus:outline-none focus:border-primary"/>
+          </div>
+          <div>
+            <label class="block text-[#94a3b8] mb-1">Stud Spacing (in)</label>
+            <input id="param-spacing" type="number" step="4" value="16" class="w-full bg-[#070b13] border border-[#1f2937] px-2 py-1 text-white focus:outline-none focus:border-primary"/>
+          </div>
+          <div>
+            <label class="block text-[#94a3b8] mb-1">Waste Factor (%)</label>
+            <input id="param-waste" type="number" step="0.5" value="0.0" class="w-full bg-[#070b13] border border-[#1f2937] px-2 py-1 text-white focus:outline-none focus:border-primary"/>
+          </div>
+        </div>
+
+        <!-- Quick Sample Fixtures -->
+        <div>
+          <div class="text-[11px] font-mono text-[#94a3b8] mb-2 uppercase tracking-wider font-semibold">Or Load Synthetic Test Fixture:</div>
+          <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+            <button onclick="runSampleFixture('fixture_wall20.pdf')" class="p-2 bg-[#080d17] hover:bg-[#131e33] border border-[#1f2937] text-left text-[#cbd5e1] hover:text-primary transition-colors">
+              <div class="font-bold text-white">20ft Partition (8.7.1)</div>
+              <div class="text-[10px] text-[#64748b]">Standard 20ft run, Tag 7A</div>
+            </button>
+            <button onclick="runSampleFixture('fixture_door.pdf')" class="p-2 bg-[#080d17] hover:bg-[#131e33] border border-[#1f2937] text-left text-[#cbd5e1] hover:text-primary transition-colors">
+              <div class="font-bold text-white">20ft Partition w/ Door</div>
+              <div class="text-[10px] text-[#64748b]">20ft wall, 3ft door deduction</div>
+            </button>
+            <button onclick="runSampleFixture('fixture_lumber.pdf')" class="p-2 bg-[#080d17] hover:bg-[#131e33] border border-[#1f2937] text-left text-[#cbd5e1] hover:text-primary transition-colors">
+              <div class="font-bold text-white">Lumber Exclusion Plan</div>
+              <div class="text-[10px] text-[#64748b]">Negative lookahead (2X4, 2X6)</div>
+            </button>
+            <button onclick="runSampleFixture('fixture_multiwall.pdf')" class="p-2 bg-[#080d17] hover:bg-[#131e33] border border-[#1f2937] text-left text-[#cbd5e1] hover:text-primary transition-colors">
+              <div class="font-bold text-white">Multi-Wall T-Junctions</div>
+              <div class="text-[10px] text-[#64748b]">Intersecting partitions (1A, 2B)</div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-4 border-t border-[#1f2937] bg-[#0b121e] flex justify-end gap-2 font-mono text-xs">
+        <button onclick="closeUploadModal()" class="px-3 py-1.5 bg-[#131e33] hover:bg-[#1c2b48] text-white">Cancel</button>
+        <button id="start-takeoff-btn" onclick="submitBlueprintUpload()" disabled class="opacity-50 cursor-not-allowed px-4 py-1.5 bg-primary text-[#003640] font-bold hover:bg-[#acedff] transition-all flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[16px]">play_arrow</span>
+          Start Takeoff Pipeline
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       5. REAL-TIME SSE PROCESSING STEPPER HUD MODAL
+       ========================================================================= -->
+  <div id="stepper-modal" class="fixed inset-0 modal-backdrop z-50 hidden items-center justify-center p-4">
+    <div class="bg-[#0d1524] border border-[#1f2937] w-full max-w-2xl shadow-2xl flex flex-col">
+      <!-- HUD Header -->
+      <div class="p-4 border-b border-[#1f2937] flex items-center justify-between bg-[#131e33]">
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 rounded-none bg-primary pulse-active"></div>
+          <span class="font-mono text-sm font-bold text-white tracking-wider">AI PIPELINE PROCESSING HUD</span>
+          <span class="text-[#475569]">/</span>
+          <span id="stepper-title" class="font-mono text-xs text-primary truncate max-w-[200px]">blueprint.pdf</span>
+        </div>
+        <span id="stepper-status-text" class="font-mono text-xs text-primary font-bold">Processing</span>
+      </div>
+
+      <!-- HUD Body -->
+      <div class="p-5 space-y-4">
+        <!-- Overall Progress Bar -->
+        <div>
+          <div class="flex justify-between font-mono text-xs mb-1">
+            <span class="text-[#94a3b8]">Pipeline Stage Progression (S00 – S16)</span>
+            <span id="progress-pct-label" class="text-primary font-bold">0%</span>
+          </div>
+          <div class="w-full h-2 bg-[#070b13] border border-[#1f2937]">
+            <div id="progress-bar" class="h-full bg-gradient-to-r from-primary to-[#06b6d4] transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- 6 Discrete Stage Cards -->
+        <div class="grid grid-cols-3 gap-2 font-mono text-xs">
+          <!-- Step 1: Discovery -->
+          <div id="stage-step-1" class="stage-card p-2 border border-[#1f2937] bg-[#080d17] flex items-center justify-between">
+            <div>
+              <div class="font-bold text-white">1. Discovery</div>
+              <div class="text-[10px] text-[#64748b]">S00 - S02 Tags</div>
+            </div>
+            <span class="material-symbols-outlined text-[#64748b] stage-icon text-[16px]">radio_button_unchecked</span>
+          </div>
+
+          <!-- Step 2: Extraction -->
+          <div id="stage-step-2" class="stage-card p-2 border border-[#1f2937] bg-[#080d17] flex items-center justify-between">
+            <div>
+              <div class="font-bold text-white">2. Extraction</div>
+              <div class="text-[10px] text-[#64748b]">S03 - S05 Jev AI</div>
+            </div>
+            <span class="material-symbols-outlined text-[#64748b] stage-icon text-[16px]">radio_button_unchecked</span>
+          </div>
+
+          <!-- Step 3: Calibration -->
+          <div id="stage-step-3" class="stage-card p-2 border border-[#1f2937] bg-[#080d17] flex items-center justify-between">
+            <div>
+              <div class="font-bold text-white">3. Calibration</div>
+              <div class="text-[10px] text-[#64748b]">S06 Scale ft/pt</div>
+            </div>
+            <span class="material-symbols-outlined text-[#64748b] stage-icon text-[16px]">radio_button_unchecked</span>
+          </div>
+
+          <!-- Step 4: Vector Linework -->
+          <div id="stage-step-4" class="stage-card p-2 border border-[#1f2937] bg-[#080d17] flex items-center justify-between">
+            <div>
+              <div class="font-bold text-white">4. Wall Tracing</div>
+              <div class="text-[10px] text-[#64748b]">S07 - S10 Seeds</div>
+            </div>
+            <span class="material-symbols-outlined text-[#64748b] stage-icon text-[16px]">radio_button_unchecked</span>
+          </div>
+
+          <!-- Step 5: Spines & Openings -->
+          <div id="stage-step-5" class="stage-card p-2 border border-[#1f2937] bg-[#080d17] flex items-center justify-between">
+            <div>
+              <div class="font-bold text-white">5. Spines &amp; Gaps</div>
+              <div class="text-[10px] text-[#64748b]">S11 - S13 Dedup</div>
+            </div>
+            <span class="material-symbols-outlined text-[#64748b] stage-icon text-[16px]">radio_button_unchecked</span>
+          </div>
+
+          <!-- Step 6: Artifact Exports -->
+          <div id="stage-step-6" class="stage-card p-2 border border-[#1f2937] bg-[#080d17] flex items-center justify-between">
+            <div>
+              <div class="font-bold text-white">6. Takeoff &amp; PDF</div>
+              <div class="text-[10px] text-[#64748b]">S14 - S16 Export</div>
+            </div>
+            <span class="material-symbols-outlined text-[#64748b] stage-icon text-[16px]">radio_button_unchecked</span>
+          </div>
+        </div>
+
+        <!-- Real-Time Live Log Terminal -->
+        <div>
+          <div class="text-[11px] font-mono text-[#94a3b8] mb-1">Live Execution Stream</div>
+          <div id="stepper-terminal" class="terminal-window p-3 h-36 overflow-y-auto space-y-1">
+            <!-- Dynamic terminal lines -->
+          </div>
+        </div>
+      </div>
+
+      <!-- HUD Footer -->
+      <div class="p-3 border-t border-[#1f2937] bg-[#0b121e] flex justify-end font-mono text-xs">
+        <button id="stepper-finish-btn" onclick="closeStepperModal()" class="hidden px-4 py-1.5 bg-primary text-[#003640] font-bold hover:bg-[#acedff] transition-all">
+          Open Workbench
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/static/js/viewer.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

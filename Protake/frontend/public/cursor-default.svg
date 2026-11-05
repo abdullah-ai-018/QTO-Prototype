@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <!-- Sleek high-contrast dark arrow with glowing blue border and white tip -->
+  <path d="M4 2 V17 L8.5 12.5 H13.5 L4 2 Z" fill="#111318" stroke="#3B82F6" stroke-width="1.5" stroke-linejoin="miter" />
+  <circle cx="4" cy="2" r="1" fill="#FFFFFF" />
+</svg>

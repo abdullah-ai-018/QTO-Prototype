@@ -1,0 +1,57 @@
+# --- Core web framework ---
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.12
+
+# --- Settings & validation ---
+pydantic>=2.9.0
+pydantic-settings>=2.6.0
+email-validator>=2.2.0
+
+# --- Database ---
+sqlalchemy>=2.0.35
+alembic>=1.13.3
+# SQLite is used out of the box (stdlib). For PostgreSQL in production, also install:
+psycopg[binary]>=3.2.3
+
+# --- Auth / security ---
+pyjwt[crypto]>=2.9.0
+bcrypt>=4.2.0
+
+# --- BIM / IFC ingestion ---
+ifcopenshell>=0.8.0
+
+# --- PDF ingestion (Legacy / Frozen) ---
+PyMuPDF>=1.24.11
+Pillow>=10.4.0
+
+# --- Geometry engine ---
+opencv-python-headless>=4.10.0.84
+shapely>=2.0.6
+networkx>=3.4.1
+numpy>=1.26.4
+scipy>=1.14.1
+
+# --- OCR engine (lazy-loaded; app boots without it installed) ---
+paddleocr>=2.9.1
+paddlepaddle>=2.6.2
+
+# --- AI validation engine: YOLOv11 + SAM2 (lazy-loaded via the Ultralytics unified API) ---
+ultralytics>=8.3.0
+
+# --- Reports ---
+reportlab>=4.2.5
+pandas>=2.2.3
+openpyxl>=3.1.5
+
+# --- AI Assistant (Claude) ---
+anthropic>=0.39.0
+
+# --- Utilities ---
+python-slugify>=8.0.4
+aiofiles>=24.1.0
+PyYAML>=6.0.2
+
+# --- Testing ---
+pytest>=8.3.3
+httpx>=0.27.2
